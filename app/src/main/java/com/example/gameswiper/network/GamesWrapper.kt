@@ -2,23 +2,20 @@ package com.example.gameswiper.network
 
 import android.content.Context
 import com.api.igdb.apicalypse.APICalypse
-import com.api.igdb.apicalypse.Sort
-import com.api.igdb.exceptions.RequestException
 import com.api.igdb.request.IGDBWrapper
-import com.api.igdb.request.IGDBWrapper.apiJsonRequest
 import com.api.igdb.request.TwitchAuthenticator
-import com.api.igdb.request.games
 import com.api.igdb.request.jsonCovers
 import com.api.igdb.request.jsonGames
 import com.api.igdb.request.jsonGenres
 import com.api.igdb.request.jsonThemes
-import com.api.igdb.utils.Endpoints
 import com.api.igdb.utils.ImageSize
 import com.api.igdb.utils.ImageType
 import com.api.igdb.utils.TwitchToken
 import com.api.igdb.utils.imageBuilder
+import com.example.gameswiper.common.parseJsonToGamesList
 import com.example.gameswiper.common.parseJsonToImageList
 import com.example.gameswiper.common.saveToJsonFile
+import com.example.gameswiper.model.Game
 import com.example.gameswiper.utils.ACCESS_TOKEN
 import com.example.gameswiper.utils.CLIENT_ID
 import com.example.gameswiper.utils.CLIENT_SECRET
@@ -27,7 +24,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 class GamesWrapper{
     var token: TwitchToken? = null
@@ -120,17 +116,17 @@ class GamesWrapper{
         }
 
         var requestString = "("+ imageIds[0]
+        println(imageIds.size)
         for(i in 1..imageIds.size-1){
             requestString += ',' + imageIds[i].toString()
         }
         requestString+=")"
-
         return withContext(Dispatchers.IO) {
             try {
                 val apiCalypse = APICalypse()
                     .fields("id, image_id")
                     .where("id = $requestString")
-
+                    .limit(imageIds.size)
                 val json = IGDBWrapper.jsonCovers(apiCalypse)
                 parseJsonToImageList(json)
             } catch (e: Exception) {
@@ -139,6 +135,43 @@ class GamesWrapper{
             }
         }
 
+    }
+
+
+    suspend fun wrapGames(context: Context, genresList: List<Int>, platformsList: List<Int>): List<Game>?{
+        if(token == null){
+            println("No token generated yet!")
+            return null
+        }
+
+        var genresString = "("+ genresList[0]
+        for(i in 1..<genresList.size){
+            genresString += ',' + genresList[i].toString()
+        }
+        genresString+=")"
+
+
+        var platformsString = "("+ platformsList[0]
+        for(i in 1..<platformsList.size){
+            platformsString += ',' + platformsList[i].toString()
+        }
+        platformsString+=")"
+
+        var json: String = " "
+        return withContext(Dispatchers.IO){
+            try{
+                val apiCalypse = APICalypse()
+                    .fields("id, cover, genres, platforms, name, themes, summary")
+                    .limit(30)
+                    .where("genres = $genresString & platforms = $platformsString & themes != null & summary != null")
+                json = IGDBWrapper.jsonGames(apiCalypse)
+                //print(json)
+                parseJsonToGamesList(json)
+            } catch(e: Exception){
+                e.printStackTrace()
+                null
+            }
+        }
     }
 
     fun getImage(imageId: String): String{

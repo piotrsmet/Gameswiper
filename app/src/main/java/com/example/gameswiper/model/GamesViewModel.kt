@@ -17,12 +17,29 @@ class GamesViewModel: ViewModel() {
     private val _currentIndex = MutableStateFlow(0)
     val currentIndex = _currentIndex.asStateFlow()
 
+    private val _games = MutableStateFlow<List<Game>>(emptyList())
+    val games = _games.asStateFlow()
+
     fun fetchImages(context: Context, imageIds: List<Int>, gamesWrapper: GamesWrapper){
         viewModelScope.launch {
             val result = gamesWrapper.wrapImages(context, imageIds)
             if (result != null) {
                 _images.value = result
                 print(images.value)
+            }
+        }
+    }
+
+    fun fetchGames(context: Context, genres: List<Int>, platforms: List<Int>, gamesWrapper: GamesWrapper){
+        viewModelScope.launch {
+            val result = gamesWrapper.wrapGames(context, genres, platforms)
+            if(result != null){
+                _games.value = result
+                val imagesList = mutableListOf<Int>()
+                for(i in result.indices){
+                    imagesList.add(result[i].cover)
+                }
+                fetchImages(context, imagesList, gamesWrapper)
             }
         }
     }
@@ -34,7 +51,7 @@ class GamesViewModel: ViewModel() {
     fun nextImage(){
         _images.value.let{
             if(it.isNotEmpty()){
-                _currentIndex.value = (_currentIndex.value + 1) % it.size
+                _currentIndex.value = (_currentIndex.value + 1)
             }
         }
     }

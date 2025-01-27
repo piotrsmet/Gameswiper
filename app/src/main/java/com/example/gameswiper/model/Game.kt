@@ -7,6 +7,5 @@ data class Game(
     val name: String = "",
     val platforms: List<Int>,
     val themes: List<Int>,
-    val description: String = "",
-    val image_id: String = ""
+    val summary: String = ""
 )

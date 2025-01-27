@@ -59,13 +59,11 @@ fun MainScreen(modifier: Modifier, context: Context){
     var imageUrl by remember { mutableStateOf(" ") }
     val genresFile = File(context.filesDir, "genres.json")
     val themesFile = File(context.filesDir, "themes.json")
-    imageUrl = wrapper.getImage("co2xhs")
     val viewModel: GamesViewModel= viewModel()
 
     wrapper.getStaticToken()
     wrapper.wrapThemes(context)
     wrapper.wrapGenres(context)
-
     val images by viewModel.images.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
 
@@ -77,7 +75,7 @@ fun MainScreen(modifier: Modifier, context: Context){
         horizontalAlignment = Alignment.CenterHorizontally){
         Row(
             modifier = Modifier.padding(horizontal = 10.dp).weight(10f)){
-            LaunchedEffect (Unit){viewModel.fetchImages(context, listOf(65483, 243407), wrapper)}
+            LaunchedEffect (Unit){viewModel.fetchGames(context, listOf(12, 5), listOf(167), wrapper)}
             Button(onClick = {}){ Text("Lorem ipsum")}
             Button(onClick = {wrapper.wrap()}){ Text("Lorem ipsum")}
         }
@@ -116,9 +114,8 @@ fun MainScreen(modifier: Modifier, context: Context){
                                             )
                                             delay(200)
                                             offsetX.snapTo(0f)
-
+                                            print(viewModel.images.value.size)
                                             viewModel.nextImage()
-                                            currentImage = images.getOrNull(currentIndex)
 
                                         }
                                         else if(offsetX.value > 100f){
@@ -129,7 +126,6 @@ fun MainScreen(modifier: Modifier, context: Context){
                                             delay(200)
                                             offsetX.snapTo(0f)
                                             viewModel.nextImage()
-                                            currentImage = images.getOrNull(currentIndex)
 
                                         }
                                         else {
@@ -189,9 +185,9 @@ fun ImageBackground(modifier: Modifier, context: Context) {
         modifier = Modifier.fillMaxSize()
     ) {
         Image(
-            painter = painterResource(id = R.drawable.back), // Wstaw nazwę swojego obrazka
+            painter = painterResource(id = R.drawable.back),
             contentDescription = null,
-            contentScale = ContentScale.FillHeight, // Dopasowanie obrazka do ekranu
+            contentScale = ContentScale.FillHeight,
             modifier = Modifier.fillMaxSize()
         )
 
