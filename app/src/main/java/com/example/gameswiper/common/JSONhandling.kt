@@ -43,6 +43,7 @@ fun parseJsonToGamesList(json: String): List<Game>{
                 platforms.add(platformsArray.getInt(j))
             }
             val themesArray = jsonObject.getJSONArray("themes")
+
             val themes = mutableListOf<Int>()
             for(j  in 0 until themesArray.length()){
                 themes.add(themesArray.getInt(j))

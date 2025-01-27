@@ -120,6 +120,7 @@ class GamesWrapper{
         for(i in 1..imageIds.size-1){
             requestString += ',' + imageIds[i].toString()
         }
+        println(imageIds.size)
         requestString+=")"
         return withContext(Dispatchers.IO) {
             try {
@@ -162,8 +163,8 @@ class GamesWrapper{
             try{
                 val apiCalypse = APICalypse()
                     .fields("id, cover, genres, platforms, name, themes, summary")
-                    .limit(30)
-                    .where("genres = $genresString & platforms = $platformsString & themes != null & summary != null")
+                    .limit(100)
+                    .where("genres = $genresString & platforms = $platformsString & themes != null & summary != null & cover != null")
                 json = IGDBWrapper.jsonGames(apiCalypse)
                 //print(json)
                 parseJsonToGamesList(json)

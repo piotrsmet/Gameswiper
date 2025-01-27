@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,6 +40,7 @@ import kotlin.math.roundToInt
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import coil3.compose.AsyncImage
@@ -75,7 +78,7 @@ fun MainScreen(modifier: Modifier, context: Context){
         horizontalAlignment = Alignment.CenterHorizontally){
         Row(
             modifier = Modifier.padding(horizontal = 10.dp).weight(10f)){
-            LaunchedEffect (Unit){viewModel.fetchGames(context, listOf(12, 5), listOf(167), wrapper)}
+            LaunchedEffect (Unit){viewModel.fetchGames(context, listOf(16, 5), listOf(6), wrapper)}
             Button(onClick = {}){ Text("Lorem ipsum")}
             Button(onClick = {wrapper.wrap()}){ Text("Lorem ipsum")}
         }
@@ -152,11 +155,12 @@ fun MainScreen(modifier: Modifier, context: Context){
                             model = currentImage,
                             contentDescription = "Example Image",
                             modifier = Modifier
-                                .size(350.dp).padding(15.dp)
+                                .size(350.dp).padding(15.dp),
                         )
                         }
 
                     }
+
 
                     if(offsetX.value>100){
                         Icon(

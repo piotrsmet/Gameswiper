@@ -35,6 +35,11 @@ class GamesViewModel: ViewModel() {
             val result = gamesWrapper.wrapGames(context, genres, platforms)
             if(result != null){
                 _games.value = result
+                for(i in result){
+                    println(i.name)
+                    println(i.genres)
+                    println(i.platforms)
+                }
                 val imagesList = mutableListOf<Int>()
                 for(i in result.indices){
                     imagesList.add(result[i].cover)

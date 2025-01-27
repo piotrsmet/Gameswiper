@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "481381063380",
+    "project_id": "gameswiper",
+    "storage_bucket": "gameswiper.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:481381063380:android:4bc0e370e9eb81429a7941",
+        "android_client_info": {
+          "package_name": "com.example.gameswiper"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD784k1VMsk_wmFTnSmywxF8b--jDgqNXE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
