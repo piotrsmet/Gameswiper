@@ -1,8 +1,13 @@
 package com.example.gameswiper.composable
 
+import android.app.Activity
 import android.content.Context
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -11,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -51,37 +57,31 @@ import java.io.File
 import kotlinx.coroutines.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gameswiper.model.GamesViewModel
+import com.example.gameswiper.repository.GameRepository
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 
 
 @Composable
-fun MainScreen(modifier: Modifier, context: Context){
+fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, viewModel: GamesViewModel, gamesRepository: GameRepository){
     val offsetX = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
     val maxRotationAngle = 15f
-    val wrapper = GamesWrapper()
     var imageUrl by remember { mutableStateOf(" ") }
-    val genresFile = File(context.filesDir, "genres.json")
     val themesFile = File(context.filesDir, "themes.json")
-    val viewModel: GamesViewModel= viewModel()
 
-    wrapper.getStaticToken()
     wrapper.wrapThemes(context)
-    wrapper.wrapGenres(context)
     val images by viewModel.images.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
-
-
+    val games by viewModel.games.collectAsState()
     var currentImage = images.getOrNull(currentIndex)
-
+    LaunchedEffect (Unit){viewModel.fetchGames(context, listOf(16, 5), listOf(6), wrapper)}
     Column(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally){
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp).weight(10f)){
-            LaunchedEffect (Unit){viewModel.fetchGames(context, listOf(16, 5), listOf(6), wrapper)}
-            Button(onClick = {}){ Text("Lorem ipsum")}
-            Button(onClick = {wrapper.wrap()}){ Text("Lorem ipsum")}
-        }
+
         Row(
             modifier = Modifier.fillMaxSize().weight(90f)){
             Column(
@@ -128,6 +128,7 @@ fun MainScreen(modifier: Modifier, context: Context){
                                             )
                                             delay(200)
                                             offsetX.snapTo(0f)
+                                            gamesRepository.addGame(games[currentIndex])
                                             viewModel.nextImage()
 
                                         }
@@ -188,6 +189,7 @@ fun ImageBackground(modifier: Modifier, context: Context) {
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
+
         Image(
             painter = painterResource(id = R.drawable.back),
             contentDescription = null,
@@ -195,6 +197,67 @@ fun ImageBackground(modifier: Modifier, context: Context) {
             modifier = Modifier.fillMaxSize()
         )
 
-        MainScreen(modifier, context)
+
+        val wrapper = GamesWrapper()
+        val viewModel: GamesViewModel = viewModel()
+        wrapper.getStaticToken()
+        val gamesRepository = GameRepository()
+        var currentScreen by remember { mutableStateOf("home_screen") }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp, top = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(onClick = {  }) {
+                    Text("Settings")
+                }
+                Button(onClick = { currentScreen = "library_screen"}) {
+                    Text("Library")
+                }
+            }
+        }
+        AnimatedVisibility(
+            visible = currentScreen == "home_screen",
+            enter = slideInHorizontally(
+                initialOffsetX = { -it },
+                animationSpec = tween(500)
+            ),
+            exit = slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(500)
+            )
+        ) {
+            MainScreen(modifier, context, wrapper, viewModel, gamesRepository)
+        }
+
+
+        AnimatedVisibility(
+            visible = currentScreen == "library_screen",
+            enter = slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(500)
+            ),
+            exit = slideOutHorizontally(
+                targetOffsetX = { -it },
+                animationSpec = tween(500)
+            )
+        ) {
+            LibraryScreen(
+                context = context,
+                viewModel = viewModel,
+                gameRepository = gamesRepository,
+                gamesWrapper = wrapper,
+                onBackPressed = { currentScreen = "home_screen" }
+            )
+        }
+
     }
 }

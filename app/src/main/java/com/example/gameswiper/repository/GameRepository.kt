@@ -1,2 +1,39 @@
 package com.example.gameswiper.repository
 
+import com.example.gameswiper.model.Game
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.tasks.await
+
+class GameRepository{
+    val firestore = Firebase.firestore
+    val auth = FirebaseAuth.getInstance()
+    val user = auth.currentUser
+    fun addGame(game: Game){
+        if (user != null){
+            firestore
+                .collection("users")
+                .document(user.uid)
+                .collection("games")
+                .add(game)
+                .addOnSuccessListener {  }
+                .addOnFailureListener {  }
+        }
+    }
+
+    suspend fun getGames(): List<Game>{
+        val games = mutableListOf<Game>()
+
+        if(user != null){
+            val snapshot = firestore
+                .collection("users")
+                .document(user.uid)
+                .collection("games")
+                .get()
+                .await()
+            games.addAll(snapshot.toObjects(Game::class.java))
+        }
+        return games
+    }
+}

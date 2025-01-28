@@ -39,7 +39,8 @@ fun LoginScreen(
         Text(
             text = "Login",
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 32.dp)
+            modifier = Modifier.padding(bottom = 32.dp),
+            color = Color.White
         )
 
         OutlinedTextField(
@@ -100,7 +101,8 @@ fun RegisterScreen(
         Text(
             text = "Register",
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 32.dp)
+            modifier = Modifier.padding(bottom = 32.dp),
+            color = Color.White
         )
 
         OutlinedTextField(

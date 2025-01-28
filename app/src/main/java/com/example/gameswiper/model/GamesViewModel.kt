@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gameswiper.network.GamesWrapper
+import com.example.gameswiper.repository.GameRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,9 @@ class GamesViewModel: ViewModel() {
     private val _games = MutableStateFlow<List<Game>>(emptyList())
     val games = _games.asStateFlow()
 
+    private val _images2 = MutableStateFlow<List<String>>(emptyList())
+    val images2 = _images2.asStateFlow()
+
     fun fetchImages(context: Context, imageIds: List<Int>, gamesWrapper: GamesWrapper){
         viewModelScope.launch {
             val result = gamesWrapper.wrapImages(context, imageIds)
@@ -29,17 +33,27 @@ class GamesViewModel: ViewModel() {
             }
         }
     }
+    fun fetchImages2(context: Context, gamesWrapper: GamesWrapper, gameRepository: GameRepository){
+        viewModelScope.launch {
+            val gamesRep = gameRepository.getGames()
+            val coversId = mutableListOf<Int>()
+            for(game in gamesRep){
+                coversId.add(game.cover)
+            }
+            val result = gamesWrapper.wrapImages(context, coversId)
+            println(result)
+            if (result != null) {
+                _images2.value = result
+                println(_images2.value.size)
+            }
+        }
+    }
 
     fun fetchGames(context: Context, genres: List<Int>, platforms: List<Int>, gamesWrapper: GamesWrapper){
         viewModelScope.launch {
             val result = gamesWrapper.wrapGames(context, genres, platforms)
             if(result != null){
                 _games.value = result
-                for(i in result){
-                    println(i.name)
-                    println(i.genres)
-                    println(i.platforms)
-                }
                 val imagesList = mutableListOf<Int>()
                 for(i in result.indices){
                     imagesList.add(result[i].cover)
