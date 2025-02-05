@@ -1,8 +1,6 @@
 package com.example.gameswiper.composable
 
-import android.app.Activity
 import android.content.Context
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -10,11 +8,14 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,7 +23,15 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,40 +53,42 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.example.gameswiper.R
-import com.example.gameswiper.model.GameResponse
 import com.example.gameswiper.network.GamesWrapper
 import java.io.File
-import kotlinx.coroutines.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.repository.GameRepository
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 
 
 @Composable
 fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, viewModel: GamesViewModel, gamesRepository: GameRepository){
     val offsetX = remember { Animatable(0f) }
+
+
     val coroutineScope = rememberCoroutineScope()
     val maxRotationAngle = 15f
     var imageUrl by remember { mutableStateOf(" ") }
     val themesFile = File(context.filesDir, "themes.json")
+    var borderColor by remember { mutableStateOf(Color(0xFF4100B1)) }
 
     wrapper.wrapThemes(context)
     val images by viewModel.images.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
     val games by viewModel.games.collectAsState()
     var currentImage = images.getOrNull(currentIndex)
-    LaunchedEffect (Unit){viewModel.fetchGames(context, listOf(16, 5), listOf(6), wrapper)}
+
+    //LaunchedEffect (Unit){viewModel.fetchGames(context, listOf(16, 5), listOf(6), wrapper)}
     Column(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally){
@@ -128,6 +139,7 @@ fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, view
                                             )
                                             delay(200)
                                             offsetX.snapTo(0f)
+                                            println(games[currentIndex])
                                             gamesRepository.addGame(games[currentIndex])
                                             viewModel.nextImage()
 
@@ -151,19 +163,45 @@ fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, view
 
                     )
 
-                    {if(currentImage != null){
-                        AsyncImage(
-                            model = currentImage,
-                            contentDescription = "Example Image",
-                            modifier = Modifier
-                                .size(350.dp).padding(15.dp),
-                        )
+                    {
+                        if(currentImage != null){
+                            println(currentImage)
+
+                            AsyncImage(
+                                model = currentImage,
+                                contentDescription = "Example Image",
+                                modifier = Modifier
+                                    .height(350.dp)
+                                    .padding(start = 48.dp, top = 15.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .border(10.dp, borderColor, RoundedCornerShape(8.dp))
+                            )
+
+
+
+                        }
+                        else{
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center),
+                                color = Color(0xFFFFF2AF)
+                            )
                         }
 
                     }
 
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if(currentImage != null) {
+                        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(5.dp)) {
+                            Box()
+                            {
+                            Text(text = games[currentIndex].name, fontSize = 20.sp, textAlign = TextAlign.Center,
+                                modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(borderColor).padding(5.dp))
+                            }
+                        }
+                    }
 
                     if(offsetX.value>100){
+                        borderColor = Color(0xFF77B254)
                         Icon(
                             painter = painterResource(R.drawable.plus),
                             contentDescription = "Add",
@@ -171,12 +209,15 @@ fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, view
                         )
                     }
                     else if(offsetX.value < -100){
+                        borderColor = Color(0xFFBE3144)
                         Icon(
                             painter = painterResource(R.drawable.delete),
                             contentDescription = "Delete",
                             modifier = Modifier.size(64.dp).align(Alignment.CenterHorizontally)
                         )
                     }
+                    else borderColor = Color(0xFF4100B1)
+
                 }
             }
         }
@@ -185,19 +226,19 @@ fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, view
 }
 
 @Composable
-fun ImageBackground(modifier: Modifier, context: Context) {
+fun ImageBackground(modifier: Modifier, context: Context, logOut: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
 
         Image(
-            painter = painterResource(id = R.drawable.back),
+            painter = painterResource(id = R.drawable.background2),
             contentDescription = null,
             contentScale = ContentScale.FillHeight,
             modifier = Modifier.fillMaxSize()
         )
 
-
+        var current by remember { mutableIntStateOf(1) }
         val wrapper = GamesWrapper()
         val viewModel: GamesViewModel = viewModel()
         wrapper.getStaticToken()
@@ -213,19 +254,41 @@ fun ImageBackground(modifier: Modifier, context: Context) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 10.dp, top = 10.dp),
+                    .padding(bottom = 10.dp, top = 20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Button(onClick = {  }) {
-                    Text("Settings")
+                Button(onClick = { current = -1; currentScreen = "settings_screen"},
+                    modifier = Modifier.size(50.dp).clip(CircleShape),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4100B1))
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", modifier = Modifier.size(30.dp), tint = Color.White)
                 }
-                Button(onClick = { currentScreen = "library_screen"}) {
-                    Text("Library")
+                Button(onClick = { current = 1; currentScreen = "library_screen"},
+                    modifier = Modifier.size(50.dp).clip(CircleShape),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4100B1))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Library", modifier = Modifier.size(30.dp), tint = Color.White)
                 }
             }
         }
         AnimatedVisibility(
             visible = currentScreen == "home_screen",
+            enter = slideInHorizontally(
+                initialOffsetX = { -it * current },
+                animationSpec = tween(500)
+            ),
+            exit = slideOutHorizontally(
+                targetOffsetX = { it * current },
+                animationSpec = tween(500)
+            )
+        ) {
+            MainScreen(modifier, context, wrapper, viewModel, gamesRepository)
+        }
+
+        AnimatedVisibility(
+            visible = currentScreen == "settings_screen",
             enter = slideInHorizontally(
                 initialOffsetX = { -it },
                 animationSpec = tween(500)
@@ -235,7 +298,7 @@ fun ImageBackground(modifier: Modifier, context: Context) {
                 animationSpec = tween(500)
             )
         ) {
-            MainScreen(modifier, context, wrapper, viewModel, gamesRepository)
+            SettingsScreen(onBackPressed = { currentScreen = "home_screen"}, context, logOut, wrapper)
         }
 
 

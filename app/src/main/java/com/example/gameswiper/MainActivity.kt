@@ -1,5 +1,6 @@
 package com.example.gameswiper
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,11 +25,17 @@ class MainActivity : ComponentActivity() {
             GameswiperTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
-                        ImageBackground(modifier = Modifier.padding(innerPadding), this)
+                        ImageBackground(modifier = Modifier.padding(innerPadding), this, {loggedOut()})
 
                 }
             }
         }
+    }
+    private fun loggedOut(){
+        val intent = Intent(this, LogInActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 }
 

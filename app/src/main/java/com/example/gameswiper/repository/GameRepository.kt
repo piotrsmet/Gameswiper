@@ -36,4 +36,23 @@ class GameRepository{
         }
         return games
     }
+    fun deleteGame(id: Int, onSuccess: () -> Unit){
+        if(user != null){
+            firestore
+                .collection("users")
+                .document(user.uid)
+                .collection("games")
+                .whereEqualTo("cover", id)
+                .get()
+                .addOnSuccessListener { document ->
+                    for(i in document){
+                        i.reference.delete()
+                            .addOnSuccessListener {
+
+                            }
+                    }
+                }
+                .addOnFailureListener {  }
+        }
+    }
 }

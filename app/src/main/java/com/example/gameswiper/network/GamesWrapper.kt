@@ -122,6 +122,7 @@ class GamesWrapper{
         }
         println(imageIds.size)
         requestString+=")"
+
         return withContext(Dispatchers.IO) {
             try {
                 val apiCalypse = APICalypse()
@@ -129,7 +130,12 @@ class GamesWrapper{
                     .where("id = $requestString")
                     .limit(imageIds.size)
                 val json = IGDBWrapper.jsonCovers(apiCalypse)
-                parseJsonToImageList(json)
+                val images =parseJsonToImageList(json)
+
+                val imageMap = images.associateBy({it.first}, {it.second}) as LinkedHashMap
+
+                imageIds.mapNotNull { imageMap[it] }
+
             } catch (e: Exception) {
                 e.printStackTrace()
                 null

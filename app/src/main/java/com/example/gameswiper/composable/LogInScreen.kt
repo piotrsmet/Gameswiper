@@ -194,19 +194,14 @@ fun ImageBackgroundAuth(modifier: Modifier, onLoginSuccess: () -> Unit, context:
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFF0D47A1),
-                        Color(0xFF1A237E),
-                        Color(0xFF4A148C),
-                        Color(0xFF311B92)
-                    ),
-                    start = Offset(0f, 10f),
-                    end = Offset(0f, 1600f)
-                )
-            )
+
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.background2),
+            contentDescription = null,
+            contentScale = ContentScale.FillHeight,
+            modifier = Modifier.fillMaxSize()
+        )
 
         AuthScreen(modifier, onLoginSuccess, context)
     }

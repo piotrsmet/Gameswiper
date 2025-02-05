@@ -7,15 +7,16 @@ import com.example.gameswiper.model.Game
 import org.json.JSONArray
 import org.json.JSONException
 
-fun parseJsonToImageList(json: String): List<String>{
-    val imageList = mutableListOf<String>()
+fun parseJsonToImageList(json: String): List<Pair<Int, String>>{
+    val imageList = mutableListOf<Pair<Int, String>>()
     try{
         val jsonArray = JSONArray(json)
         for(i in 0 until jsonArray.length()){
             val jsonObject = jsonArray.getJSONObject(i)
+            val id = jsonObject.getInt("id")
             val imageId = jsonObject.getString("image_id")
             val imageUrl = imageBuilder(imageId, ImageSize.FHD, ImageType.PNG)
-            imageList.add(imageUrl)
+            imageList.add(id to imageUrl)
         }
     } catch (e: JSONException){
         e.printStackTrace()
