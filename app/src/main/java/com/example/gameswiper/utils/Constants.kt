@@ -3,11 +3,10 @@ package com.example.gameswiper.utils
 import com.example.gameswiper.model.Genre
 import com.example.gameswiper.model.Platform
 
-//you need to get these values on your own
-val CLIENT_ID = ""
-val CLIENT_SECRET =  ""
-var ACCESS_TOKEN: String? = ""
-var EXPIRES_IN: Long = 0
+val CLIENT_ID = "p974jcjhdift50t7313a0qaopxe37x"
+val CLIENT_SECRET =  "eezehbbjj53uvwm0u9ead5r5qq0d62"
+var ACCESS_TOKEN: String? = "q3jkuxekflgb3ujo2tefzj2cz6ips4"
+var EXPIRES_IN: Long = 5340614
 
 
 val PLATFORMS: List<Platform> = listOf(
