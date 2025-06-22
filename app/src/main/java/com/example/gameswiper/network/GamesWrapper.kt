@@ -150,7 +150,7 @@ class GamesWrapper{
             println("No token generated yet!")
             return null
         }
-
+        print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         var genresString = "("+ genresList[0]
         for(i in 1..<genresList.size){
             genresString += ',' + genresList[i].toString()
@@ -169,13 +169,14 @@ class GamesWrapper{
             try{
                 val apiCalypse = APICalypse()
                     .fields("id, cover, genres, platforms, name, themes, summary")
-                    .limit(100)
-                    .where("genres = $genresString & platforms = $platformsString & themes != null & summary != null & cover != null")
+                    .limit(500)
+                    .where("genres = $genresString & platforms = $platformsString & themes != null & summary != null & cover != null & themes != 42")
+                println("ffffffffffff" + apiCalypse.toString())
                 json = IGDBWrapper.jsonGames(apiCalypse)
-                //print(json)
-                parseJsonToGamesList(json)
+                parseJsonToGamesList(json).shuffled()
             } catch(e: Exception){
                 e.printStackTrace()
+                print("uuuuuuuuuuuuuuuuuuuuuuuu")
                 null
             }
         }

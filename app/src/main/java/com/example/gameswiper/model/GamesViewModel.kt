@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
+import com.example.gameswiper.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +36,13 @@ class GamesViewModel: ViewModel() {
 
     private val _selectedPlatforms = MutableStateFlow<Set<Int>>(emptySet())
     val selectedPlatforms = _selectedPlatforms.asStateFlow()
+
+    private val _offSetXValue = MutableStateFlow(0f)
+    val offSetXValue = _offSetXValue.asStateFlow()
+
+    fun update0ffset(value: Float){
+        _offSetXValue.value = value
+    }
 
     fun addPlatform(id: Int){
         _selectedPlatforms.value = _selectedPlatforms.value.toMutableSet().apply { add(id) }
@@ -75,14 +83,28 @@ class GamesViewModel: ViewModel() {
                 coversId.add(game.cover)
                 _coverId.value = coversId
             }
-            val result = gamesWrapper.wrapImages(context, coversId)
-            println(result)
-            if (result != null) {
-                _images2.value = result as MutableList<String>
-                println(_images2.value.size)
+            if(gamesRep.isNotEmpty()) {
+                val result = gamesWrapper.wrapImages(context, coversId)
+                println(result)
+                if (result != null) {
+                    _images2.value = result as MutableList<String>
+                    println(_images2.value.size)
+                }
             }
         }
     }
+
+    fun fetchSettings(settingsRepository: SettingsRepository, context: Context, gamesWrapper: GamesWrapper){
+        viewModelScope.launch {
+            val settingsRep = settingsRepository.getSettings()
+            _selectedGenres.value = settingsRep.genres.toSet()
+            _selectedPlatforms.value = settingsRep.platforms.toSet()
+            if(settingsRep.genres.isNotEmpty()) {
+                fetchGames(context, settingsRep.genres, settingsRep.platforms, gamesWrapper)
+            }
+        }
+    }
+
     fun removeImage(id: String){
         val index = _images2.value.indexOf(id)
         _images2.value = _images2.value.toMutableList().apply { remove(id) }
@@ -110,7 +132,7 @@ class GamesViewModel: ViewModel() {
     fun nextImage(){
         _images.value.let{
             if(it.isNotEmpty()){
-                _currentIndex.value = (_currentIndex.value + 1)
+                _currentIndex.value = (_currentIndex.value + 1) % 500
             }
         }
     }

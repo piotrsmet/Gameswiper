@@ -52,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.network.GamesWrapper
+import com.example.gameswiper.repository.SettingsRepository
 import kotlinx.coroutines.flow.forEach
 
 
@@ -65,6 +66,11 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
     val viewModel: GamesViewModel = viewModel()
     val modelGenres by viewModel.selectedGenres.collectAsState()
     val modelPlatforms by viewModel.selectedPlatforms.collectAsState()
+    val settingsRepository = SettingsRepository()
+
+    val genresCopy = remember { modelGenres.toSet() }
+    val platformsCopy = remember { modelPlatforms.toSet() }
+
     LaunchedEffect(Unit) {
         modelGenres.forEach{ genreId ->
             genres.find { it.id == genreId }?.let { genre ->
@@ -80,7 +86,15 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
 
     Box(modifier = Modifier.fillMaxSize()) {
         BackHandler {
-            viewModel.fetchGames(context, viewModel.selectedGenres.value.toList(), viewModel.selectedPlatforms.value.toList(), wrapper)
+            settingsRepository.setSettings(modelGenres.toList(), modelPlatforms.toList())
+            println(modelPlatforms + "platforms " + platformsCopy + " " + modelGenres + " genres" + genresCopy + "!!!!!")
+            if(modelPlatforms != platformsCopy.toSet() || modelGenres != genresCopy.toSet()) {
+                viewModel.fetchGames(
+                    context,
+                    viewModel.selectedGenres.value.toList(),
+                    viewModel.selectedPlatforms.value.toList(), wrapper
+                )
+            }
             onBackPressed()
         }
         Image(
@@ -122,8 +136,8 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
 
 
                 }
-                Spacer(modifier = Modifier.height(20.dp))
-                Row(modifier = Modifier.background(Color(0xFF4635B1))) {
+
+                Row(modifier = Modifier.background(Color(0xFF4635B1)).padding(top=40.dp)) {
                     LazyVerticalGrid(columns = GridCells.Fixed(3)) {
                         items(platforms) { platform ->
                             val isChecked = checkedPlatforms[platform.name] ?: false
@@ -153,8 +167,8 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
 
 
                 }
-                Spacer(modifier = Modifier.height(20.dp))
-                Row(modifier = Modifier.fillMaxWidth().background(Color(0xFF4635B1)), horizontalArrangement = Arrangement.Center) {
+
+                Row(modifier = Modifier.fillMaxWidth().background(Color(0xFF4635B1)).padding(top=40.dp), horizontalArrangement = Arrangement.Center) {
                     Button(
                         modifier = Modifier.padding(4.dp),
                         onClick = { FirebaseAuth.getInstance().signOut(); logOut() },

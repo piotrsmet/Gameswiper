@@ -1,5 +1,9 @@
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -16,7 +20,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.gameswiper.LogInActivity
 import com.example.gameswiper.R
+import com.example.gameswiper.composable.FirstLogin
 import com.example.gameswiper.composable.MainScreen
 import com.google.firebase.auth.FirebaseAuth
 
@@ -154,8 +160,10 @@ fun RegisterScreen(
 }
 
 @Composable
-fun AuthScreen(modifier: Modifier, onLoginSuccess: () -> Unit, context: Context) {
+fun AuthScreen(modifier: Modifier, onLoginSuccess: () -> Unit, context: Context, onRegisterSuccess: () -> Unit) {
+
     var currentScreen by remember { mutableStateOf("login") }
+
     val auth = FirebaseAuth.getInstance()
     val validEmail by remember { mutableStateOf("") }
     val validPassword by remember { mutableStateOf("") }
@@ -178,7 +186,7 @@ fun AuthScreen(modifier: Modifier, onLoginSuccess: () -> Unit, context: Context)
             onRegister = { email, password ->
                 auth.createUserWithEmailAndPassword(email, password)
                     .addOnCompleteListener{task ->
-                        if(task.isSuccessful) onLoginSuccess()
+                        if(task.isSuccessful) onRegisterSuccess()
                         else Toast.makeText(context, "Invalid email or password", Toast.LENGTH_SHORT).show()
                     }
                 println("Register with $email and $password")
@@ -191,18 +199,48 @@ fun AuthScreen(modifier: Modifier, onLoginSuccess: () -> Unit, context: Context)
 
 @Composable
 fun ImageBackgroundAuth(modifier: Modifier, onLoginSuccess: () -> Unit, context: Context) {
+    var currentScreen by remember { mutableStateOf("auth_screen") }
+    var current by remember { mutableIntStateOf(1) }
+    val prefs = context.getSharedPreferences("my_prefs", Context.MODE_PRIVATE)
+    if(prefs.getString("SETTINGS", null) == "not_done"){
+        currentScreen = "first_settings"
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-
     ) {
         Image(
             painter = painterResource(id = R.drawable.background2),
             contentDescription = null,
             contentScale = ContentScale.FillHeight,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+
         )
 
-        AuthScreen(modifier, onLoginSuccess, context)
+        AnimatedVisibility(
+            visible = currentScreen == "auth_screen",
+            exit = slideOutHorizontally(
+                targetOffsetX = { it * current },
+                animationSpec = tween(500)
+            )
+        ) {
+            AuthScreen(modifier, onLoginSuccess, context, onRegisterSuccess =  {currentScreen = "first_settings"})
+        }
+        AnimatedVisibility(
+            visible = currentScreen == "first_settings",
+            enter = slideInHorizontally(
+                initialOffsetX = { -it * current },
+                animationSpec = tween(500)
+            ),
+            exit = slideOutHorizontally(
+                targetOffsetX = { it * current },
+                animationSpec = tween(500)
+            )
+        ) {
+            FirstLogin(onLoginSuccess, context)
+        }
+
+
     }
 }

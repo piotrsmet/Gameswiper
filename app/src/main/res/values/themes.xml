@@ -2,4 +2,13 @@
 <resources>
 
     <style name="Theme.Gameswiper" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Gameswiper.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#4100B1</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/controller</item>
+        <item name="postSplashScreenTheme">@style/Theme.Gameswiper</item>
+        <item name="splashScreenIconSize">258dp</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+
+    </style>
 </resources>

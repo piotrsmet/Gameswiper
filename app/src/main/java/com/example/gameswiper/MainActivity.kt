@@ -1,6 +1,9 @@
 package com.example.gameswiper
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,19 +16,27 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.content.ContextCompat
 import com.example.gameswiper.composable.ImageBackground
 import com.example.gameswiper.composable.MainScreen
+import com.example.gameswiper.service.Receiver
+import com.example.gameswiper.service.Scheduler
 import com.example.gameswiper.ui.theme.GameswiperTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+
+
+        Scheduler.scheduleNotification(this, 17, 0)
+
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             GameswiperTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
-                        ImageBackground(modifier = Modifier.padding(innerPadding), this, {loggedOut()})
+                    ImageBackground(modifier = Modifier.padding(innerPadding), this, {loggedOut()})
 
                 }
             }

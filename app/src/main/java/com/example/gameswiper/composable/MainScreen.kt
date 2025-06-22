@@ -1,6 +1,11 @@
 package com.example.gameswiper.composable
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -58,47 +63,67 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import coil3.compose.AsyncImage
 import com.example.gameswiper.R
 import com.example.gameswiper.network.GamesWrapper
 import java.io.File
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil3.ImageLoader
+import coil3.request.ImageRequest
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.repository.GameRepository
+import com.example.gameswiper.repository.SettingsRepository
+import com.example.gameswiper.utils.GENRES
+import com.example.gameswiper.utils.PLATFORMS
 
 
 @Composable
 fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, viewModel: GamesViewModel, gamesRepository: GameRepository){
     val offsetX = remember { Animatable(0f) }
 
-
+    val settingsRepository = SettingsRepository()
     val coroutineScope = rememberCoroutineScope()
     val maxRotationAngle = 15f
     var imageUrl by remember { mutableStateOf(" ") }
     val themesFile = File(context.filesDir, "themes.json")
     var borderColor by remember { mutableStateOf(Color(0xFF4100B1)) }
+    var borderColor2 by remember { mutableStateOf(Color(0xFF4100B1)) }
 
-    wrapper.wrapThemes(context)
+
     val images by viewModel.images.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
     val games by viewModel.games.collectAsState()
+    val genres by viewModel.selectedGenres.collectAsState()
+    val genresList = GENRES
+    val platformsList = PLATFORMS
+    val platforms by viewModel.selectedPlatforms.collectAsState()
     var currentImage = images.getOrNull(currentIndex)
 
-    //LaunchedEffect (Unit){viewModel.fetchGames(context, listOf(16, 5), listOf(6), wrapper)}
+
+
+
     Column(
         modifier = modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally){
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
 
         Row(
-            modifier = Modifier.fillMaxSize().weight(90f)){
+            modifier = Modifier.fillMaxSize().weight(90f)
+        ) {
             Column(
-                modifier =  Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center) {
+                verticalArrangement = Arrangement.Center
+            ) {
                 Card(
                     colors = CardColors(
                         Color(0xFF4635B1), Color(0xFFBBBBBB),
@@ -107,21 +132,22 @@ fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, view
                     modifier = Modifier
                         .height(600.dp)
                         .width(350.dp)
-                        .offset{IntOffset(offsetX.value.roundToInt(), 0)}
+                        .offset { IntOffset(offsetX.value.roundToInt(), 0) }
                         .graphicsLayer {
                             rotationZ = (offsetX.value / 1000f) * maxRotationAngle
                         }
-                        .pointerInput(Unit){
-                            detectDragGestures (
-                                onDrag = {change, dragAmount ->
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDrag = { change, dragAmount ->
                                     change.consume()
-                                    coroutineScope.launch{
+                                    coroutineScope.launch {
                                         offsetX.snapTo(offsetX.value + dragAmount.x)
+                                        viewModel.update0ffset(offsetX.value + dragAmount.x)
                                     }
                                 },
                                 onDragEnd = {
-                                    coroutineScope.launch{
-                                        if(offsetX.value < -100f){
+                                    coroutineScope.launch {
+                                        if (offsetX.value < -100f) {
                                             offsetX.animateTo(
                                                 targetValue = -1500f,
                                                 animationSpec = tween(durationMillis = 300)
@@ -131,8 +157,7 @@ fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, view
                                             print(viewModel.images.value.size)
                                             viewModel.nextImage()
 
-                                        }
-                                        else if(offsetX.value > 100f){
+                                        } else if (offsetX.value > 100f) {
                                             offsetX.animateTo(
                                                 targetValue = 1500f,
                                                 animationSpec = tween(durationMillis = 300)
@@ -143,13 +168,13 @@ fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, view
                                             gamesRepository.addGame(games[currentIndex])
                                             viewModel.nextImage()
 
-                                        }
-                                        else {
+                                        } else {
                                             offsetX.animateTo(
                                                 targetValue = 0f,
                                                 animationSpec = tween(durationMillis = 300)
                                             )
                                         }
+                                        viewModel.update0ffset(0f)
                                     }
                                 }
                             )
@@ -162,25 +187,38 @@ fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, view
                             .size(350.dp)
 
                     )
-
                     {
-                        if(currentImage != null){
+                        if (currentImage != null) {
                             println(currentImage)
+
+                            val imageLoader = ImageLoader(context)
+
+                            LaunchedEffect(currentIndex) {
+                                val nextImages = images.drop(currentIndex + 1)
+                                    .take(3)
+                                nextImages.forEach { imageUrl ->
+                                    val request = ImageRequest.Builder(context)
+                                        .data(imageUrl)
+                                        .build()
+                                    imageLoader.enqueue(request)
+                                }
+                            }
 
                             AsyncImage(
                                 model = currentImage,
                                 contentDescription = "Example Image",
                                 modifier = Modifier
-                                    .height(350.dp)
-                                    .padding(start = 48.dp, top = 15.dp)
+                                    .height(340.dp)
+                                    .width(650.dp)
+                                    .padding(start = 60.dp, top = 15.dp, end = 60.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .border(10.dp, borderColor, RoundedCornerShape(8.dp))
+                                    .border(10.dp, borderColor2, RoundedCornerShape(8.dp))
+                                    .background(Color.White)
+
                             )
 
 
-
-                        }
-                        else{
+                        } else {
                             CircularProgressIndicator(
                                 modifier = Modifier.align(Alignment.Center),
                                 color = Color(0xFFFFF2AF)
@@ -190,43 +228,104 @@ fun MainScreen(modifier: Modifier, context: Context, wrapper: GamesWrapper, view
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
-                    if(currentImage != null) {
-                        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(5.dp)) {
+                    if (currentImage != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth().padding(5.dp)
+                        ) {
                             Box()
                             {
-                            Text(text = games[currentIndex].name, fontSize = 20.sp, textAlign = TextAlign.Center,
-                                modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(borderColor).padding(5.dp))
+                                Text(
+                                    text = games[currentIndex].name,
+                                    fontSize = 20.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                                        .background(borderColor).padding(5.dp)
+                                )
                             }
                         }
-                    }
 
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth().padding(5.dp)
+                        ) {
+
+                            Box(modifier = Modifier.padding(start = 40.dp).width(100.dp))
+                            {
+                                var genresToString = ""
+                                games[currentIndex].genres.forEach{ genreId ->
+                                    genresList.find { it.id == genreId }?.let { genre ->
+                                        genresToString+="${genre.name} "
+                                    }
+                                }
+
+                                Text(
+                                    text = genresToString,
+                                    fontSize = 10.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                                        .background(borderColor).padding(5.dp),
+                                    maxLines = 2
+                                )
+                            }
+
+                            Box(modifier = Modifier.padding(end = 40.dp).width(100.dp))
+                            {
+                                var platformsToString = ""
+                                games[currentIndex].platforms.forEach{ platformId ->
+                                    platformsList.find { it.id == platformId }?.let { platform ->
+                                        platformsToString+="${platform.name} "
+                                    }
+                                }
+                                Text(
+                                    text = platformsToString,
+                                    fontSize = 10.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.clip(RoundedCornerShape(15.dp))
+                                        .background(borderColor).padding(5.dp),
+                                    maxLines = 2,
+                                )
+                            }
+
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth().padding(5.dp)
+                        ) {
+                            Box()
+                            {
+                                Text(
+                                    text = games[currentIndex].summary,
+                                    fontSize = 15.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.clip(RoundedCornerShape(10.dp))
+                                        .background(borderColor).padding(5.dp),
+                                    maxLines = 4,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                    }
                     if(offsetX.value>100){
-                        borderColor = Color(0xFF77B254)
-                        Icon(
-                            painter = painterResource(R.drawable.plus),
-                            contentDescription = "Add",
-                            modifier = Modifier.size(64.dp).align(Alignment.CenterHorizontally)
-                        )
+                        borderColor2 = Color(0xFF5D8736)
                     }
-                    else if(offsetX.value < -100){
-                        borderColor = Color(0xFFBE3144)
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            contentDescription = "Delete",
-                            modifier = Modifier.size(64.dp).align(Alignment.CenterHorizontally)
-                        )
+                    else if(offsetX.value<-100){
+                        borderColor2 = Color(0xFFA31D1D)
                     }
-                    else borderColor = Color(0xFF4100B1)
+                    else borderColor2 = Color(0xFF4100B1)
 
                 }
             }
         }
     }
-    
+
 }
 
 @Composable
 fun ImageBackground(modifier: Modifier, context: Context, logOut: () -> Unit) {
+    val viewModel: GamesViewModel = viewModel()
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -240,16 +339,19 @@ fun ImageBackground(modifier: Modifier, context: Context, logOut: () -> Unit) {
 
         var current by remember { mutableIntStateOf(1) }
         val wrapper = GamesWrapper()
-        val viewModel: GamesViewModel = viewModel()
         wrapper.getStaticToken()
         val gamesRepository = GameRepository()
         var currentScreen by remember { mutableStateOf("home_screen") }
+        val settingsRepository = SettingsRepository()
+
+        LaunchedEffect (Unit){viewModel.fetchSettings(settingsRepository, context, wrapper)}
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
+            NotificationPermissionHandler()
 
             Row(
                 modifier = Modifier
@@ -323,4 +425,29 @@ fun ImageBackground(modifier: Modifier, context: Context, logOut: () -> Unit) {
         }
 
     }
+}
+
+@Composable
+fun NotificationPermissionHandler() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var permissionGranted by remember { mutableStateOf(checkNotificationPermission(context)) }
+
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        permissionGranted = isGranted
+    }
+    LaunchedEffect(Unit) {
+        if (!permissionGranted) {
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+}
+
+fun checkNotificationPermission(context: Context): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        ContextCompat.checkSelfPermission(
+            context, Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+    } else true
 }

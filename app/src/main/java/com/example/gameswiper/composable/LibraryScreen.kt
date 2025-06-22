@@ -87,6 +87,7 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                     }
                 }
             }
+
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier
@@ -96,17 +97,6 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                 if (imagesList.value.isEmpty() || coverIdList.value.isEmpty()) {
                     item {
                         Color(0xFFFFF2AF)
-                    }
-                }
-                else if(imagesList.value.size == 0){
-                    item {
-                        Text(
-                            text = "No games in library",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            color = Color.White
-                        )
                     }
                 }
                 else {
