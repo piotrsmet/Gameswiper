@@ -3,7 +3,6 @@ package com.example.gameswiper.utils
 import com.example.gameswiper.model.Genre
 import com.example.gameswiper.model.Platform
 
-
 val CLIENT_ID = "p974jcjhdift50t7313a0qaopxe37x"
 val CLIENT_SECRET =  "is0rxe8d3fab4oyt16o5fvlsc92wmi"
 var ACCESS_TOKEN: String? = "c3a4m7hhjqy23jiqxbperezyy4hs77"
