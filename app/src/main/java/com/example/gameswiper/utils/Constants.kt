@@ -5,8 +5,8 @@ import com.example.gameswiper.model.Platform
 
 val CLIENT_ID = "p974jcjhdift50t7313a0qaopxe37x"
 val CLIENT_SECRET =  "is0rxe8d3fab4oyt16o5fvlsc92wmi"
-var ACCESS_TOKEN: String? = "c3a4m7hhjqy23jiqxbperezyy4hs77"
-var EXPIRES_IN: Long = 5310136
+var ACCESS_TOKEN: String? = "qa54bxbeuuzzdg4hf39lfjadu280az"
+var EXPIRES_IN: Long = 4797109
 
 val PLATFORMS: List<Platform> = listOf(
     Platform(6, "PC"),
