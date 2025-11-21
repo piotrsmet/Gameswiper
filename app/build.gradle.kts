@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
+    alias(libs.plugins.compose.compiler)
+
 }
 
 android {
@@ -64,7 +66,8 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.4")
     implementation(platform("com.google.firebase:firebase-bom:33.8.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
-
+    implementation("androidx.graphics:graphics-shapes:1.0.1")
+    implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:13.0.0")
 
 
     implementation(libs.androidx.lifecycle.viewmodel.compose)

@@ -1,14 +1,11 @@
 package com.example.gameswiper
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -16,10 +13,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.content.ContextCompat
 import com.example.gameswiper.composable.ImageBackground
 import com.example.gameswiper.composable.MainScreen
-import com.example.gameswiper.service.Receiver
 import com.example.gameswiper.service.Scheduler
 import com.example.gameswiper.ui.theme.GameswiperTheme
 
@@ -34,10 +29,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GameswiperTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-
-                    ImageBackground(modifier = Modifier.padding(innerPadding), this, {loggedOut()})
-
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0)
+                ) { innerPadding ->
+                    MainScreen(Modifier.padding(innerPadding), this) { loggedOut() }
                 }
             }
         }
@@ -49,6 +45,9 @@ class MainActivity : ComponentActivity() {
         finish()
     }
 }
+
+
+
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {

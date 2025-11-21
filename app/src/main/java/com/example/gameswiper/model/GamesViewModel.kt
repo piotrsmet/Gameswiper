@@ -1,6 +1,7 @@
 package com.example.gameswiper.model
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gameswiper.network.GamesWrapper
@@ -15,6 +16,9 @@ class GamesViewModel: ViewModel() {
 
     private val _images = MutableStateFlow<List<String>>(emptyList())
     val images = _images.asStateFlow()
+
+    private val _videos = MutableStateFlow<List<String>>(emptyList())
+    val videos = _videos.asStateFlow()
 
     private val _currentImage = MutableStateFlow<String?>(null)
     val currentImage = _currentImage.asStateFlow()
@@ -64,17 +68,23 @@ class GamesViewModel: ViewModel() {
         viewModelScope.launch {
             val result = gamesWrapper.wrapImages(context, imageIds)
             if (result != null) {
-                for(i in result){
-                    println(i)
-                }
-                for(i in imageIds){
-                    println(i)
-                }
                 _images.value = result
                 print(images.value)
             }
         }
     }
+
+    fun fetchVideos(context: Context, videoIds: List<Int>, gamesWrapper: GamesWrapper){
+        viewModelScope.launch{
+            val result = gamesWrapper.wrapVideos(videoIds)
+            if (result != null){
+                _videos.value = result
+                Log.d("essa", _videos.value.toString())
+                print(videos.value)
+            }
+        }
+    }
+
     fun fetchImages2(context: Context, gamesWrapper: GamesWrapper, gameRepository: GameRepository){
         viewModelScope.launch {
             val gamesRep = gameRepository.getGames()
@@ -85,10 +95,8 @@ class GamesViewModel: ViewModel() {
             }
             if(gamesRep.isNotEmpty()) {
                 val result = gamesWrapper.wrapImages(context, coversId)
-                println(result)
                 if (result != null) {
                     _images2.value = result as MutableList<String>
-                    println(_images2.value.size)
                 }
             }
         }
@@ -117,16 +125,16 @@ class GamesViewModel: ViewModel() {
             if(result != null){
                 _games.value = result
                 val imagesList = mutableListOf<Int>()
+                val videosList = mutableListOf<Int>()
                 for(i in result.indices){
                     imagesList.add(result[i].cover)
+                    videosList.add(result[i].video)
                 }
+
                 fetchImages(context, imagesList, gamesWrapper)
+                fetchVideos(context, videosList, gamesWrapper)
             }
         }
-    }
-
-    fun add(value: Int){
-        _currentIndex.value += value
     }
 
     fun nextImage(){

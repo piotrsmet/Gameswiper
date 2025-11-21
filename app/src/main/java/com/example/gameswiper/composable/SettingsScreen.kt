@@ -60,7 +60,7 @@ import kotlinx.coroutines.flow.forEach
 fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Unit, wrapper: GamesWrapper){
     val genres = GENRES
     val platforms = PLATFORMS
-    val backgroundColor = Color(0xFF4100B1)
+    val backgroundColor = Color(Color.Black.value)
     val checkedGenres = remember { mutableStateMapOf<String, Boolean>() }
     val checkedPlatforms = remember { mutableStateMapOf<String, Boolean>() }
     val viewModel: GamesViewModel = viewModel()
@@ -97,18 +97,12 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
             }
             onBackPressed()
         }
-        Image(
-            painter = painterResource(id = R.drawable.back),
-            contentDescription = null,
-            contentScale = ContentScale.FillHeight,
-            modifier = Modifier.fillMaxSize()
-        )
         Box(modifier = Modifier.fillMaxSize().padding(top = 30.dp)) {
 
             Column(
                 modifier = Modifier.padding(10.dp).clip(RoundedCornerShape(10.dp))
             ) {
-                Row(modifier = Modifier.background(Color(0xFF4635B1))) {
+                Row(modifier = Modifier.background(Color(Color.Black.value))) {
                     LazyVerticalGrid(columns = GridCells.Fixed(3),) {
                         items(genres) { genre ->
                             val isChecked = checkedGenres[genre.name] ?: false
@@ -137,7 +131,7 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
 
                 }
 
-                Row(modifier = Modifier.background(Color(0xFF4635B1)).padding(top=40.dp)) {
+                Row(modifier = Modifier.background(Color(Color.Black.value)).padding(top=40.dp)) {
                     LazyVerticalGrid(columns = GridCells.Fixed(3)) {
                         items(platforms) { platform ->
                             val isChecked = checkedPlatforms[platform.name] ?: false
@@ -168,7 +162,7 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
 
                 }
 
-                Row(modifier = Modifier.fillMaxWidth().background(Color(0xFF4635B1)).padding(top=40.dp), horizontalArrangement = Arrangement.Center) {
+                Row(modifier = Modifier.fillMaxWidth().background(Color(Color.Black.value)).padding(top=40.dp), horizontalArrangement = Arrangement.Center) {
                     Button(
                         modifier = Modifier.padding(4.dp),
                         onClick = { FirebaseAuth.getInstance().signOut(); logOut() },

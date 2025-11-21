@@ -17,8 +17,8 @@ class GameRepository{
                 .document(user.uid)
                 .collection("games")
                 .add(game)
-                .addOnSuccessListener {  }
-                .addOnFailureListener {  }
+                .addOnSuccessListener { println("successs") }
+                .addOnFailureListener { println("failure") }
         }
     }
 
