@@ -61,6 +61,10 @@ dependencies {
         exclude(group = "com.google.protobuf", module = "protobuf-javalite")
         exclude(group = "com.google.protobuf", module = "protobuf-kotlin")
     }
+
+
+    implementation("androidx.datastore:datastore-preferences:1.2.0")
+    implementation("androidx.datastore:datastore-preferences-core:1.2.0")
     implementation("androidx.core:core-splashscreen:1.0.0")
     implementation("io.coil-kt.coil3:coil-compose:3.0.4")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.4")

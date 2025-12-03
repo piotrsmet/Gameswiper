@@ -45,18 +45,26 @@ fun parseJsonToVideosList(json: String): List<Pair<Int, String>>{
     return videosList
 }
 
-fun parseJsonToPopularityList(json: String): List<Pair<Int, Int>>{
-    val popularityList = mutableListOf<Pair<Int, Int>>()
+fun parseJsonToPopularityList(json: String): List<Pair<Int, Double?>>{
+    val popularityList = mutableListOf<Triple<Int, Int, Double>>()
     try{
         val jsonArray = JSONArray(json)
         for(i in 0 until jsonArray.length()){
             val jsonObject = jsonArray.getJSONObject(i)
-            TODO()
+            val id = jsonObject.getInt("id")
+            val game_id = jsonObject.getInt("game_id")
+            val value = jsonObject.getDouble("value")
+            popularityList.add(Triple(id, game_id, value))
         }
     } catch(e: JSONException){
         e.printStackTrace()
     }
-    return popularityList
+
+    val popularityListFiltered = popularityList.groupBy { it.second }.mapValues { (_, valList) ->
+        valList.maxOfOrNull { it.third }
+    }.toList()
+
+    return popularityListFiltered
 }
 
 fun parseJsonToGamesList(json: String): List<Game>{
@@ -98,7 +106,14 @@ fun parseJsonToGamesList(json: String): List<Game>{
 
             val summary = jsonObject.getString("summary")
 
-            gameList.add(Game(gameId, cover, video, genres, name, platforms, themes, summary))
+            val similarGamesArray = jsonObject.getJSONArray("similar_games")
+            val similarGames = mutableListOf<Int>()
+
+            for(j in 0 until similarGamesArray.length()){
+                similarGames.add(similarGamesArray.getInt(j))
+            }
+
+            gameList.add(Game(gameId, cover, video, genres, name, platforms, themes, summary, similarGames))
 
         }
     }catch (e: JSONException){

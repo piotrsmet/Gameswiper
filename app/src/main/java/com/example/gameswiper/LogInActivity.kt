@@ -1,8 +1,6 @@
 package com.example.gameswiper
 
-import AuthScreen
-import ImageBackgroundAuth
-import android.app.Activity
+import com.example.gameswiper.composable.ImageBackgroundAuth
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -11,18 +9,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gameswiper.composable.ImageBackground
-import com.example.gameswiper.model.GamesViewModel
-import com.example.gameswiper.network.GamesWrapper
-import com.example.gameswiper.repository.SettingsRepository
 import com.example.gameswiper.ui.theme.GameswiperTheme
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.remote.Datastore
-import java.util.prefs.Preferences
 
 class LogInActivity : ComponentActivity(){
     private lateinit var auth: FirebaseAuth
@@ -35,7 +24,9 @@ class LogInActivity : ComponentActivity(){
                     auth = FirebaseAuth.getInstance()
                     val prefs = this.getSharedPreferences("my_prefs", Context.MODE_PRIVATE)
 
-                    if(auth.currentUser != null && prefs.getString("SETTINGS", null) != "not_done") {
+                    if(auth.currentUser != null &&
+                        prefs.getString("SETTINGS", null) != "choosing_preferences" &&
+                        prefs.getString("SETTINGS", null) != "choosing_avatar"){
                         loggedIn()
                     }
                     ImageBackgroundAuth(Modifier.padding(innerPadding), { loggedIn() }, this)

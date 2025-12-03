@@ -18,17 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
-import com.example.gameswiper.repository.SettingsRepository
+import com.example.gameswiper.repository.UserRepository
 
 enum class Screens{
     swipingScreen,
@@ -38,17 +36,19 @@ enum class Screens{
 }
 
 @Composable
-fun MainScreen(modifier: Modifier, context: Context, logOut: () -> Unit){
+fun MainScreen(modifier: Modifier, context: Context, viewModel: GamesViewModel, logOut: () -> Unit){
 
-    val viewModel: GamesViewModel = viewModel()
     var current by remember { mutableIntStateOf(1) }
     val wrapper = GamesWrapper()
     wrapper.getStaticToken()
     val gamesRepository = GameRepository()
-    val settingsRepository = SettingsRepository()
+    val userRepository = UserRepository()
     var currentScreen: Screens = Screens.swipingScreen
 
-    LaunchedEffect (Unit){viewModel.fetchSettings(settingsRepository, context, wrapper)}
+    LaunchedEffect (Unit){
+        viewModel.fetchSettings(userRepository, context, wrapper)
+        viewModel.fetchUserDisplay(userRepository)
+    }
 
     Box(modifier = modifier
         .fillMaxSize()
@@ -83,7 +83,7 @@ fun MainScreen(modifier: Modifier, context: Context, logOut: () -> Unit){
                     Modifier
                         .fillMaxWidth()
                         .weight(15f)) {
-                            ProfileScreen(context)
+                            ProfileScreen(viewModel, userRepository, context)
                         }
             }
             Row(

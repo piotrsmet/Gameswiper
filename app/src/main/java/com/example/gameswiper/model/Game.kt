@@ -8,9 +8,10 @@ data class Game(
     val name: String = "",
     val platforms: MutableList<Int> = mutableListOf(),
     val themes: MutableList<Int> = mutableListOf(),
-    val summary: String = ""
+    val summary: String = "",
+    val similarGames: MutableList<Int> = mutableListOf()
 ){
-    constructor() : this(0, 0, 0, mutableListOf(), "", mutableListOf(), mutableListOf(), "")
+    constructor() : this(0, 0, 0, mutableListOf(), "", mutableListOf(), mutableListOf(), "", mutableListOf())
 }
 
 

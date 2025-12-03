@@ -10,8 +10,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -36,6 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
@@ -81,11 +86,13 @@ import com.example.gameswiper.R
 import com.example.gameswiper.network.GamesWrapper
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.ImageLoader
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.repository.GameRepository
-import com.example.gameswiper.repository.SettingsRepository
+import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.GENRES
 import com.example.gameswiper.utils.PLATFORMS
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
@@ -109,20 +116,18 @@ fun SwipingScreen(
     val coroutineScope = rememberCoroutineScope()
     val maxRotationAngle = 15f
 
-    val images by viewModel.images.collectAsState()
-    val currentIndex by viewModel.currentIndex.collectAsState()
-    val videos by viewModel.videos.collectAsState()
-    val games by viewModel.games.collectAsState()
-
-    val currentImage = images.getOrNull(currentIndex)
-    val nextImage = images.getOrNull(currentIndex + 1)
-    val currentVideo = videos.getOrNull(currentIndex)
+    val gameCards by viewModel.gameCards.collectAsState()
+    val currentCard = gameCards.getOrNull(0)
+    val nextCard = gameCards.getOrNull(1)
+    val currentImage = currentCard?.imageUrl
+    val nextImage = nextCard?.imageUrl
+    val currentVideo = currentCard?.videoId
 
 
     val imageLoader = remember { ImageLoader(context) }
-    LaunchedEffect(currentIndex, images) {
-        val preloadCount = 4
-        val upcoming = images.drop(currentIndex + 1).take(preloadCount)
+    LaunchedEffect(gameCards.size) {
+        val preloadCount = 10
+        val upcoming = gameCards.map { it.imageUrl }.take(preloadCount)
         upcoming.forEach { imageUrl ->
             val request = ImageRequest.Builder(context)
                 .data(imageUrl)
@@ -133,6 +138,36 @@ fun SwipingScreen(
             imageLoader.enqueue(request)
         }
     }
+
+    LaunchedEffect(Unit) {
+        imageLoader.diskCache?.clear()
+        imageLoader.memoryCache?.clear()
+    }
+
+    LaunchedEffect(gameCards.size){
+        if(gameCards.size < 30 && viewModel.selectedPlatforms.value.isNotEmpty()){
+            val preferredIds = viewModel.getPreferredGameIds()
+
+            Log.i("fetched again", gameCards.size.toString())
+            if(preferredIds.size > 100){
+                viewModel.fetchGames(context,
+                    viewModel.selectedGenres.value.toList(),
+                    viewModel.selectedPlatforms.value.toList(),
+                    wrapper,
+                    preferredIds
+                    )
+            }
+            else {
+                viewModel.fetchGames(
+                    context,
+                    viewModel.selectedGenres.value.toList(),
+                    viewModel.selectedPlatforms.value.toList(),
+                    wrapper
+                )
+            }
+        }
+    }
+
 
     val swipeProgress = (offsetX.value / 600f).coerceIn(-1f, 1f)
     val backgroundColor = when {
@@ -153,8 +188,7 @@ fun SwipingScreen(
 
     var expanded by remember { mutableStateOf(false) }
     val cardHeight by animateDpAsState(if (expanded) 730.dp else 500.dp)
-    val cardWidth by animateDpAsState(if (expanded) 380.dp else 350.dp)
-    val cornerRadius by animateDpAsState(if (expanded) 0.dp else 24.dp)
+    val cardWidth by animateDpAsState(if (expanded) 380.dp else 370.dp)
     val scale by animateFloatAsState(if (expanded) 1.05f else 1f)
     var swipeButtonEnabled by remember { mutableStateOf(true) }
 
@@ -172,16 +206,23 @@ fun SwipingScreen(
         finishedListener = { likedAnim = false }
     )
 
+
+    val painter = rememberAsyncImagePainter(
+        model = currentImage,
+        imageLoader = imageLoader
+    )
+
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(gradientBrush),
         contentAlignment = Alignment.Center
     ) {
-        val currentGame = games.getOrNull(currentIndex)
+        val currentGame = currentCard?.game
         Row(Modifier.align(Alignment.BottomCenter).padding(10.dp)){
             IconButton(onClick = {
-                if(swipeButtonEnabled and offsetX.value.equals(0f)) {
+                if(swipeButtonEnabled && offsetX.value.equals(0f) && currentGame != null) {
                     swipeButtonEnabled = false
                     dislikedAnim = true
                     coroutineScope.launch {
@@ -193,6 +234,9 @@ fun SwipingScreen(
                         delay(250)
                         offsetX.snapTo(0f)
                         nextCardScale.snapTo(0.80f)
+
+                        viewModel.swipedLeft(currentGame.similarGames)
+                        viewModel.removeCard()
                         viewModel.nextImage()
                         swipeButtonEnabled = true
                     }
@@ -208,21 +252,25 @@ fun SwipingScreen(
             }
             Spacer(Modifier.width(40.dp))
             IconButton(onClick = {
-                if(swipeButtonEnabled and offsetX.value.equals(0f)) {
+                if(swipeButtonEnabled && offsetX.value.equals(0f) && currentGame != null) {
                     swipeButtonEnabled = false
                     likedAnim = true
                     coroutineScope.launch {
                         offsetX.animateTo(1500f, tween(300))
-                        if (currentGame != null) {
-                            gamesRepository.addGame(currentGame)
-                        }
+
+                        gamesRepository.addGame(currentGame)
+                        viewModel.swipedRight(currentGame.similarGames)
+
                         launch {
                             nextCardScale.animateTo(1f, tween(300))
                             nextCardOffsetY.animateTo(0f, tween(300))
                         }
+
                         delay(250)
                         offsetX.snapTo(0f)
                         nextCardScale.snapTo(0.80f)
+
+                        viewModel.removeCard()
                         viewModel.nextImage()
                         swipeButtonEnabled = true
                     }
@@ -242,7 +290,7 @@ fun SwipingScreen(
             Card(
                 modifier = Modifier
                     .height(500.dp)
-                    .width(350.dp)
+                    .width(370.dp)
                     .graphicsLayer {
                         scaleX = nextCardScale.value
                         scaleY = nextCardScale.value
@@ -257,146 +305,199 @@ fun SwipingScreen(
                     contentDescription = "Next card",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
-                    imageLoader = imageLoader
+                    imageLoader = imageLoader,
                 )
             }
         }
 
 
-        if (currentImage != null && currentGame != null) {
-            Card(
-                modifier = Modifier
-                    .height(cardHeight)
-                    .width(cardWidth)
-                    .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                    .graphicsLayer {
-                        rotationZ = (offsetX.value / 1000f) * maxRotationAngle
-                        scaleX = scale
-                        scaleY = scale
-                    }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { expanded = !expanded }
-                    )
-                    .pointerInput(expanded) {
-                        if(!expanded){
-                            detectDragGestures(
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    coroutineScope.launch {
-                                        offsetX.snapTo(offsetX.value + dragAmount.x)
-                                        val progress = (offsetX.value / 300f).coerceIn(-1f, 1f)
-                                        nextCardScale.snapTo(0.80f + (0.10f * abs(progress)))
-                                        //nextCardOffsetY.snapTo(20f - (20f * abs(progress)))
-                                    }
-                                },
-                                onDragEnd = {
-                                    coroutineScope.launch {
-                                        val targetValue = when {
-                                            offsetX.value < -100f -> -1500f
-                                            offsetX.value > 100f -> 1500f
-                                            else -> 0f
-                                        }
 
-                                        if (targetValue != 0f) {
-                                            offsetX.animateTo(targetValue, tween(300))
-                                            if (offsetX.value > 0f) {
-                                                gamesRepository.addGame(currentGame)
-                                            }
-                                            launch {
-                                                nextCardScale.animateTo(1f, tween(300))
-                                                nextCardOffsetY.animateTo(0f, tween(300))
-                                            }
-                                            delay(250)
-                                            offsetX.snapTo(0f)
-                                            nextCardScale.snapTo(0.80f)
-                                            //nextCardOffsetY.snapTo(20f)
-                                            viewModel.nextImage()
-                                        } else {
-                                            offsetX.animateTo(0f, tween(300))
-                                            nextCardScale.animateTo(0.95f, tween(300))
-                                            nextCardOffsetY.animateTo(20f, tween(300))
+        Card(
+            modifier = Modifier
+                .height(cardHeight)
+                .width(cardWidth)
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .graphicsLayer {
+                    rotationZ = (offsetX.value / 1000f) * maxRotationAngle
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { expanded = !expanded }
+                )
+                .pointerInput(expanded) {
+                    if(!expanded && currentGame != null){
+                        detectDragGestures(
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                coroutineScope.launch {
+                                    offsetX.snapTo(offsetX.value + dragAmount.x)
+                                    val progress = (offsetX.value / 300f).coerceIn(-1f, 1f)
+                                    nextCardScale.snapTo(0.80f + (0.10f * abs(progress)))
+
+                                }
+                            },
+                            onDragEnd = {
+                                coroutineScope.launch {
+                                    val targetValue = when {
+                                        offsetX.value < -100f -> -1500f
+                                        offsetX.value > 100f -> 1500f
+                                        else -> 0f
+                                    }
+
+                                    if (targetValue != 0f) {
+                                        offsetX.animateTo(targetValue, tween(300))
+                                        if (offsetX.value > 0f) {
+                                            gamesRepository.addGame(currentGame)
+                                            viewModel.swipedRight(currentGame.similarGames)
                                         }
+                                        else {
+                                            viewModel.swipedLeft(currentGame.similarGames)
+                                        }
+                                        launch {
+                                            nextCardScale.animateTo(1f, tween(300))
+                                            nextCardOffsetY.animateTo(0f, tween(300))
+                                        }
+                                        delay(250)
+                                        offsetX.snapTo(0f)
+                                        nextCardScale.snapTo(0.80f)
+
+                                        viewModel.removeCard()
+                                        viewModel.nextImage()
+                                    } else {
+                                        offsetX.animateTo(0f, tween(300))
+                                        nextCardScale.animateTo(0.95f, tween(300))
+                                        nextCardOffsetY.animateTo(20f, tween(300))
                                     }
                                 }
-                            )
-                        }
-                    },
-                colors = CardDefaults.cardColors(Color.Transparent),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Box(){
-                    AsyncImage(
-                        model = currentImage,
-                        contentDescription = "Game image",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                        imageLoader = imageLoader
-                    )
+                            }
+                        )
+                    }
+                },
+            colors = CardDefaults.cardColors(Color.Transparent),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
 
-                    Column{
-                        AnimatedVisibility(
-                            visible = expanded,
-                            enter = fadeIn(tween(300)),
-                            exit = fadeOut(tween(200))
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            listOf(Color.Black.copy(alpha = 0.85f), Color.Transparent),
-                                            startY = 1000f,
-                                            endY = 0f
+                Box() {
+                    if (painter.state.value is AsyncImagePainter.State.Loading
+                        || painter.state.value is AsyncImagePainter.State.Empty) {
+                        ShimmerCard(
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    Image(
+                        painter = painter,
+                        contentDescription = "Game image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    if(currentGame != null) {
+                        Column {
+                            AnimatedVisibility(
+                                visible = expanded,
+                                enter = fadeIn(tween(300)),
+                                exit = fadeOut(tween(200))
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(
+                                                    Color.Black.copy(alpha = 0.85f),
+                                                    Color.Transparent
+                                                ),
+                                                startY = 1000f,
+                                                endY = 0f
+                                            )
                                         )
+                                        .padding(24.dp),
+                                    verticalArrangement = Arrangement.Bottom
+                                ) {
+                                    Text(
+                                        text = currentGame.name,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
                                     )
-                                    .padding(24.dp),
-                                verticalArrangement = Arrangement.Bottom
-                            ){
-                                Text(
-                                    text = currentGame.name,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    text = "Genres: ${currentGame.genres.map{ g -> GENRES.find{ gn -> gn.id == g}?.name ?: "" }.joinToString()}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    text = "Platforms: ${currentGame.platforms.map{ p -> PLATFORMS.find{ pl -> pl.id == p}?.name ?: ""}.filter{p -> p != ""}.joinToString()}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    text = if (currentGame.summary.length > 120)
-                                        currentGame.summary.take(120) + "…"
-                                    else
-                                        currentGame.summary,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                YouTubePlayerScreen(currentVideo)
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = "Genres: ${
+                                            currentGame.genres.map { g -> GENRES.find { gn -> gn.id == g }?.name ?: "" }
+                                                .joinToString()
+                                        }",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = "Platforms: ${
+                                            currentGame.platforms.map { p -> PLATFORMS.find { pl -> pl.id == p }?.name ?: "" }
+                                                .filter { p -> p != "" }.joinToString()
+                                        }",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = if (currentGame.summary.length > 120)
+                                            currentGame.summary.take(120) + "…"
+                                        else
+                                            currentGame.summary,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    YouTubePlayerScreen(currentVideo)
+                                }
                             }
                         }
-                    }
                 }
             }
         }
+
 
     }
 }
 
 
+@Composable
+fun ShimmerCard(
+    modifier: Modifier = Modifier,
+    cornerRadius: Int = 24
+) {
+    val shimmerColors = listOf(
+        Color.DarkGray.copy(alpha = 0.4f),
+        Color.DarkGray.copy(alpha = 0.15f),
+        Color.DarkGray.copy(alpha = 0.4f)
+    )
+
+    val transition = rememberInfiniteTransition(label = "")
+    val translateAnim by transition.animateFloat(
+        initialValue = -1000f,
+        targetValue = 1500f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing)
+        ), label = ""
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset(translateAnim, 0f),
+        end = Offset(translateAnim + 500f, 500f)
+    )
+
+    Box(
+        modifier = modifier
+            .clip(shape = RoundedCornerShape(cornerRadius.dp))
+            .background(brush)
+    )
+}
 
 
 
@@ -458,9 +559,9 @@ fun ImageBackground(modifier: Modifier, context: Context, logOut: () -> Unit) {
         wrapper.getStaticToken()
         val gamesRepository = GameRepository()
         var currentScreen by remember { mutableStateOf("home_screen") }
-        val settingsRepository = SettingsRepository()
+        val userRepository = UserRepository()
 
-        LaunchedEffect (Unit){viewModel.fetchSettings(settingsRepository, context, wrapper)}
+        LaunchedEffect (Unit){viewModel.fetchSettings(userRepository, context, wrapper)}
 
         Column(
             modifier = Modifier
