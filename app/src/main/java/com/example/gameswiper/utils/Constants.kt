@@ -1,9 +1,12 @@
 package com.example.gameswiper.utils
 
 import android.content.Context
+import androidx.compose.ui.graphics.Color
+
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.gameswiper.R
 import com.example.gameswiper.model.Genre
 import com.example.gameswiper.model.Platform
 
@@ -16,6 +19,18 @@ val Context.userDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "userData"
 )
 
+
+val AVATARS = listOf(
+    R.drawable.avatar_bad_breaking_svgrepo_com,
+    R.drawable.avatar_dead_monster_svgrepo_com,
+    R.drawable.avatar_hindi_indian_svgrepo_com,
+    R.drawable.avatar_geisha_japanese_svgrepo_com
+)
+
+val DOMINANT_COLOR = Color(0xFF0C011E)
+val SECOND_COLOR = Color(0xFF0D0115)
+val BUTTON_COLOR = Color(0xFFFF3F7F)
+val DETAILS_COLOR = Color(0xFFFFC400)
 
 val PLATFORMS: List<Platform> = listOf(
     Platform(6, "PC"),

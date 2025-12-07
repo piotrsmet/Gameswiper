@@ -1,7 +1,6 @@
 package com.example.gameswiper.composable
 
 import android.content.Context
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,28 +15,23 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.repository.UserRepository
+import com.example.gameswiper.utils.AVATARS
 
 @Composable
 fun ProfileScreen(
@@ -47,6 +41,7 @@ fun ProfileScreen(
 ) {
     val user by viewModel.userDisplay.collectAsState()
 
+    val avatar = AVATARS[user.profilePicture.toInt() % AVATARS.size]
 
     val stats = listOf(
         "Przesunięto" to user.swiped,
@@ -66,7 +61,7 @@ fun ProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Profile Picture
+
             Surface(
                 shape = CircleShape,
                 modifier = Modifier.size(120.dp),
@@ -75,8 +70,9 @@ fun ProfileScreen(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Default.Person,
+                        painter = painterResource(avatar),
                         contentDescription = "Profile Picture",
+                        tint = Color.Unspecified,
                         modifier = Modifier.size(80.dp)
                     )
                 }

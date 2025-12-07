@@ -1,5 +1,6 @@
 package com.example.gameswiper.repository
 
+import android.util.Log
 import com.example.gameswiper.model.Game
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
@@ -36,6 +37,7 @@ class GameRepository{
         }
         return games
     }
+
     fun deleteGame(id: Int, onSuccess: () -> Unit){
         if(user != null){
             firestore
@@ -48,11 +50,11 @@ class GameRepository{
                     for(i in document){
                         i.reference.delete()
                             .addOnSuccessListener {
-
+                                onSuccess()
                             }
                     }
                 }
-                .addOnFailureListener {  }
+                .addOnFailureListener { Log.i("Porażka", "faioldsa") }
         }
     }
 }

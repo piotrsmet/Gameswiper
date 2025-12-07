@@ -3,6 +3,7 @@ package com.example.gameswiper.composable
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -18,10 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 
@@ -32,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -42,6 +42,10 @@ import com.example.gameswiper.model.UserDisplay
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.GENRES
 import com.example.gameswiper.utils.PLATFORMS
+import com.example.gameswiper.utils.AVATARS
+import com.example.gameswiper.utils.DETAILS_COLOR
+import com.example.gameswiper.utils.DOMINANT_COLOR
+import com.example.gameswiper.utils.SECOND_COLOR
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -89,7 +93,7 @@ fun LoginScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(DOMINANT_COLOR)
     ) {
         Column(
             modifier = Modifier
@@ -154,7 +158,7 @@ fun RegisterScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(DOMINANT_COLOR)
     ) {
         Column(
             modifier = Modifier
@@ -230,6 +234,7 @@ fun RegisterScreen(
     }
 }
 
+
 @Composable
 fun AvatarSelection(
     modifier: Modifier = Modifier,
@@ -237,12 +242,8 @@ fun AvatarSelection(
     onAvatarSelected: () -> Unit,
     viewModel: GamesViewModel
 ) {
-    val icons = listOf(
-        Icons.Default.Person,
-        Icons.Default.AccountCircle,
-        Icons.Default.Face,
-        Icons.Default.Check,
-    )
+    val icons = AVATARS
+
     var selected by remember { mutableIntStateOf(0) }
     val prefs = context.getSharedPreferences("my_prefs", Context.MODE_PRIVATE)
     prefs.edit().putString("SETTINGS", "choosing_avatar").apply()
@@ -250,7 +251,7 @@ fun AvatarSelection(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF2E2A7A))
+            .background(DOMINANT_COLOR)
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -260,6 +261,12 @@ fun AvatarSelection(
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             icons.forEachIndexed { index, icon ->
+                val iconSize by animateDpAsState(
+                    targetValue = if (selected == index) 72.dp else 60.dp,
+                    animationSpec = tween(durationMillis = 300),
+                    label = "avatar size"
+                )
+
                 Surface(
                     modifier = Modifier
                         .size(72.dp)
@@ -267,11 +274,16 @@ fun AvatarSelection(
                         .clickable(interactionSource = remember { MutableInteractionSource() },
                             indication = null, onClick = {selected = index} ),
                     shape = CircleShape,
-                    color = if (selected == index) Color(0xFF6F62E8) else Color(0xFF4635B1),
+                    color = if (selected == index) SECOND_COLOR else DETAILS_COLOR,
                     border = if (selected == index) BorderStroke(3.dp, Color.White) else null
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
+                        Icon(
+                            painter = painterResource(icon),
+                            contentDescription = null,
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(iconSize)
+                        )
                     }
                 }
             }
@@ -296,6 +308,7 @@ fun AvatarSelection(
         }
     }
 }
+
 
 @Composable
 fun AuthScreen(modifier: Modifier, onLoginSuccess: () -> Unit, context: Context, onRegisterSuccess: () -> Unit, viewModel: GamesViewModel) {
@@ -350,7 +363,7 @@ fun ChoosingPreferences(onSettingsSet: () -> Unit, context: Context, viewModel: 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0B0B0B))
+            .background(DOMINANT_COLOR)
             .padding(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -364,7 +377,7 @@ fun ChoosingPreferences(onSettingsSet: () -> Unit, context: Context, viewModel: 
             Surface(
                 tonalElevation = 8.dp,
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF13111F),
+                color = SECOND_COLOR,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 LazyVerticalGrid(
@@ -511,7 +524,7 @@ fun ChoosingPreferences(onSettingsSet: () -> Unit, context: Context, viewModel: 
             ) {
 
 
-                val canProceed = modelGenres.isNotEmpty() && modelPlatforms.isNotEmpty()
+                val canProceed = modelGenres.size > 5 && modelPlatforms.isNotEmpty()
 
                 Button(
                     onClick = {
@@ -534,7 +547,6 @@ fun ChoosingPreferences(onSettingsSet: () -> Unit, context: Context, viewModel: 
         }
     }
 }
-
 
 @Composable
 fun ImageBackgroundAuth(modifier: Modifier, onLoginSuccess: () -> Unit, context: Context) {

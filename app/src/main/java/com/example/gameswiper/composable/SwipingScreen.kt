@@ -93,6 +93,8 @@ import coil3.request.allowHardware
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.repository.UserRepository
+import com.example.gameswiper.utils.BUTTON_COLOR
+import com.example.gameswiper.utils.DETAILS_COLOR
 import com.example.gameswiper.utils.GENRES
 import com.example.gameswiper.utils.PLATFORMS
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
@@ -155,7 +157,7 @@ fun SwipingScreen(
                     viewModel.selectedPlatforms.value.toList(),
                     wrapper,
                     preferredIds
-                    )
+                )
             }
             else {
                 viewModel.fetchGames(
@@ -171,8 +173,8 @@ fun SwipingScreen(
 
     val swipeProgress = (offsetX.value / 600f).coerceIn(-1f, 1f)
     val backgroundColor = when {
-        swipeProgress > 0 -> Color(0xFF4CAF50)
-        swipeProgress < 0 -> Color(0xFFE53935)
+        swipeProgress > 0 -> DETAILS_COLOR
+        swipeProgress < 0 -> BUTTON_COLOR
         else -> Color(0xFF4100B1)
     }
     val gradientAlpha = abs(swipeProgress)
@@ -248,7 +250,7 @@ fun SwipingScreen(
                         scaleX = dislikeScale
                         scaleY = dislikeScale
                     }) {
-                Icon(painter = painterResource(R.drawable.dislike), tint = Color.Red, contentDescription = "dislike")
+                Icon(painter = painterResource(R.drawable.dislike), tint = BUTTON_COLOR, contentDescription = "dislike")
             }
             Spacer(Modifier.width(40.dp))
             IconButton(onClick = {
@@ -282,7 +284,7 @@ fun SwipingScreen(
                         scaleX = likeScale
                         scaleY = likeScale
                     }) {
-                Icon(painter = painterResource(R.drawable.like), tint = Color.Green, contentDescription = "like")
+                Icon(painter = painterResource(R.drawable.like), tint = DETAILS_COLOR, contentDescription = "like")
             }
         }
 
@@ -327,8 +329,8 @@ fun SwipingScreen(
                     indication = null,
                     onClick = { expanded = !expanded }
                 )
-                .pointerInput(expanded) {
-                    if(!expanded && currentGame != null){
+                .pointerInput(expanded, swipeButtonEnabled) { // Dodano swipeButtonEnabled jako klucz
+                    if(!expanded && currentGame != null && swipeButtonEnabled){ // Dodano warunek swipeButtonEnabled
                         detectDragGestures(
                             onDrag = { change, dragAmount ->
                                 change.consume()
@@ -348,6 +350,7 @@ fun SwipingScreen(
                                     }
 
                                     if (targetValue != 0f) {
+                                        swipeButtonEnabled = false // Zablokuj kolejne przesunięcia
                                         offsetX.animateTo(targetValue, tween(300))
                                         if (offsetX.value > 0f) {
                                             gamesRepository.addGame(currentGame)
@@ -366,6 +369,7 @@ fun SwipingScreen(
 
                                         viewModel.removeCard()
                                         viewModel.nextImage()
+                                        swipeButtonEnabled = true // Odblokuj po zakończeniu
                                     } else {
                                         offsetX.animateTo(0f, tween(300))
                                         nextCardScale.animateTo(0.95f, tween(300))
@@ -380,83 +384,83 @@ fun SwipingScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
 
-                Box() {
-                    if (painter.state.value is AsyncImagePainter.State.Loading
-                        || painter.state.value is AsyncImagePainter.State.Empty) {
-                        ShimmerCard(
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    Image(
-                        painter = painter,
-                        contentDescription = "Game image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+            Box() {
+                if (painter.state.value is AsyncImagePainter.State.Loading
+                    || painter.state.value is AsyncImagePainter.State.Empty) {
+                    ShimmerCard(
+                        modifier = Modifier.fillMaxSize()
                     )
-                    if(currentGame != null) {
-                        Column {
-                            AnimatedVisibility(
-                                visible = expanded,
-                                enter = fadeIn(tween(300)),
-                                exit = fadeOut(tween(200))
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                listOf(
-                                                    Color.Black.copy(alpha = 0.85f),
-                                                    Color.Transparent
-                                                ),
-                                                startY = 1000f,
-                                                endY = 0f
-                                            )
+                }
+                Image(
+                    painter = painter,
+                    contentDescription = "Game image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                if(currentGame != null) {
+                    Column {
+                        AnimatedVisibility(
+                            visible = expanded,
+                            enter = fadeIn(tween(300)),
+                            exit = fadeOut(tween(200))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                Color.Black.copy(alpha = 0.85f),
+                                                Color.Transparent
+                                            ),
+                                            startY = 1000f,
+                                            endY = 0f
                                         )
-                                        .padding(24.dp),
-                                    verticalArrangement = Arrangement.Bottom
-                                ) {
-                                    Text(
-                                        text = currentGame.name,
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
                                     )
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        text = "Genres: ${
-                                            currentGame.genres.map { g -> GENRES.find { gn -> gn.id == g }?.name ?: "" }
-                                                .joinToString()
-                                        }",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        text = "Platforms: ${
-                                            currentGame.platforms.map { p -> PLATFORMS.find { pl -> pl.id == p }?.name ?: "" }
-                                                .filter { p -> p != "" }.joinToString()
-                                        }",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        text = if (currentGame.summary.length > 120)
-                                            currentGame.summary.take(120) + "…"
-                                        else
-                                            currentGame.summary,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    YouTubePlayerScreen(currentVideo)
-                                }
+                                    .padding(24.dp),
+                                verticalArrangement = Arrangement.Bottom
+                            ) {
+                                Text(
+                                    text = currentGame.name,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = "Genres: ${
+                                        currentGame.genres.map { g -> GENRES.find { gn -> gn.id == g }?.name ?: "" }
+                                            .joinToString()
+                                    }",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = "Platforms: ${
+                                        currentGame.platforms.map { p -> PLATFORMS.find { pl -> pl.id == p }?.name ?: "" }
+                                            .filter { p -> p != "" }.joinToString()
+                                    }",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = if (currentGame.summary.length > 120)
+                                        currentGame.summary.take(120) + "…"
+                                    else
+                                        currentGame.summary,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                YouTubePlayerScreen(currentVideo)
                             }
                         }
+                    }
                 }
             }
         }
@@ -464,6 +468,7 @@ fun SwipingScreen(
 
     }
 }
+
 
 
 @Composable

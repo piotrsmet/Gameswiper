@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -33,8 +34,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
@@ -43,6 +48,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,15 +66,19 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.example.gameswiper.R
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
+import com.example.gameswiper.utils.BUTTON_COLOR
+import com.example.gameswiper.utils.DETAILS_COLOR
 
 private enum class FullScreenImageState {
     HIDDEN,
@@ -82,11 +93,31 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
         viewModel.fetchImages2(context, gamesWrapper, gameRepository)
     }
     val imagesList = viewModel.images2.collectAsState()
-    val coverIdList = viewModel.coverId.collectAsState()
+    val savedGames = viewModel.savedGames.collectAsState()
+
     var columns by remember { mutableStateOf(3) }
     var selectedImageUrl by remember { mutableStateOf<String?>(null) }
+    var selectedImageId by remember { mutableStateOf<Int?>(null) }
     var isFlipped by remember { mutableStateOf(false) }
     var aspectRatio by remember(selectedImageUrl) { mutableStateOf<Float?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val gamesWithImages = remember(savedGames.value, imagesList.value) {
+        savedGames.value.zip(imagesList.value) { game, imageUrl ->
+            game to imageUrl
+        }
+    }
+
+    val filteredGames = remember(searchQuery, gamesWithImages) {
+        if (searchQuery.isBlank()) {
+            gamesWithImages
+        } else {
+            gamesWithImages.filter { (game, _) ->
+                game.name.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
 
     LaunchedEffect(selectedImageUrl) {
         if (selectedImageUrl == null) {
@@ -94,45 +125,69 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
         }
     }
 
+
     BackHandler {
         if (isFlipped) {
             isFlipped = false
         } else if (selectedImageUrl != null) {
             selectedImageUrl = null
+            selectedImageId = null
         } else {
             onBackPressed()
         }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(Modifier.padding(top = 50.dp)) {
-            Row(Modifier.weight(1f).fillMaxWidth()){
+        Column(Modifier.padding(top = 50.dp, bottom = 16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Wyszukaj grę...", color = Color.Gray) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search Icon", tint = Color.White) },
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Color.White,
+                        focusedContainerColor = Color.DarkGray,
+                        unfocusedContainerColor = Color.DarkGray,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    textStyle = TextStyle(fontSize = 16.sp),
+                    singleLine = true
+                )
 
-                Button(
-                    modifier = Modifier.weight(1f).border(2.dp, Color.White),
-                    onClick = { columns = 1},
-                    shape = CircleShape,
-                    colors = ButtonColors(Color.Black, Color.Black, Color.Black, Color.Black)
-                ) {
-                    Text("1", color = Color.White)
+                IconButton(onClick = { columns = 1 }) {
+                    Icon(
+                        painter = painterResource(R.drawable.column_one_svgrepo_com),
+                        contentDescription = "1 Column",
+                        tint = if (columns == 1) DETAILS_COLOR else Color.Gray
+                    )
                 }
-                Button(
-                    modifier = Modifier.weight(1f).border(2.dp, Color.White),
-                    onClick = { columns = 2},
-                    shape = CircleShape,
-                    colors = ButtonColors(Color.Red, Color.Black, Color.Black, Color.Black)
-                ) {
-                    Text("2", color = Color.White)
+                IconButton(onClick = { columns = 2 }) {
+                    Icon(
+                        painter = painterResource(R.drawable.columns_02_svgrepo_com),
+                        contentDescription = "2 Columns",
+                        tint = if (columns == 2) DETAILS_COLOR else Color.Gray
+                    )
                 }
-                Button(
-                    modifier = Modifier.weight(1f).border(2.dp, Color.White),
-                    onClick = { columns = 3},
-                    shape = CircleShape,
-                    colors = ButtonColors(Color.Black, Color.Black, Color.Black, Color.Black)
-                ) {
-                    Text("3", color = Color.White)
+                IconButton(onClick = { columns = 3 }) {
+                    Icon(
+                        painter = painterResource(R.drawable.columns_03_svgrepo_com),
+                        contentDescription = "3 Columns",
+                        tint = if (columns == 3) DETAILS_COLOR else Color.Gray
+                    )
                 }
             }
+
             Row(Modifier.weight(12f)) {
                 Box() {
                     LazyVerticalGrid(
@@ -141,37 +196,18 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                             .background(Color.Black)
                             .fillMaxSize()
                     ) {
-                        if (imagesList.value.isEmpty() || coverIdList.value.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .background(Color.Black)
-                                )
-                            }
-                        } else {
-                            items(imagesList.value.size) { index ->
-                                ImageCard(
-                                    imageUrl = imagesList.value[index],
-                                    columns = columns,
-                                    gameId = coverIdList.value[index],
-                                    onDelete = {
-                                        gameRepository.deleteGame(
-                                            coverIdList.value[index]
-                                        ) {
-                                            viewModel.fetchImages2(
-                                                context,
-                                                gamesWrapper,
-                                                gameRepository
-                                            )
-                                        }
-                                    },
-                                    removeCover = { viewModel.removeImage2(imagesList.value[index]) },
-                                    onClick = { selectedImageUrl = imagesList.value[index] },
-                                    modifier = Modifier.animateItem(),
-                                    title = "Lorem ipsum dolor sit amet"
-                                )
-
-                            }
+                        items(filteredGames.size) { index ->
+                            val (game, imageUrl) = filteredGames[index]
+                            ImageCard(
+                                imageUrl = imageUrl,
+                                columns = columns,
+                                onClick = {
+                                    selectedImageUrl = imageUrl
+                                    selectedImageId = game.cover
+                                },
+                                modifier = Modifier.animateItem(),
+                                title = game.name
+                            )
                         }
                     }
                 }
@@ -195,7 +231,7 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
             label = "scale",
             transitionSpec = {
                 if (targetState == FullScreenImageState.HIDDEN) {
-                    tween(durationMillis = 0)
+                    tween(durationMillis = 300)
                 } else {
                     tween(durationMillis = 300)
                 }
@@ -222,7 +258,7 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.85f))
+                    .background(Color.Black.copy(alpha = 0.85f * scale))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -230,51 +266,90 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                val density = LocalDensity.current.density
-                Box(
+                Column(
                     modifier = Modifier
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            rotationY = rotation
-                            cameraDistance = 8 * density
-                        }
+                        .fillMaxWidth()
+                        .padding(16.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { isFlipped = !isFlipped }
-                        )
+                            onClick = {}
+                        ),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (rotation <= 90f) {
-                        AsyncImage(
-                            model = selectedImageUrl,
-                            contentDescription = "Full screen image",
-                            onState = { state ->
-                                if (state is AsyncImagePainter.State.Success) {
-                                    val size = state.painter.intrinsicSize
-                                    if (size.height > 0f) {
-                                        aspectRatio = size.width / size.height
+
+                    if (rotation <= 90f && scale > 0.5f) {
+                        IconButton(
+                            onClick = {
+                                selectedImageId?.let { gameId ->
+                                    gameRepository.deleteGame(gameId) {
+                                        viewModel.fetchImages2(context, gamesWrapper, gameRepository) {
+                                            selectedImageUrl = null
+                                        }
                                     }
                                 }
                             },
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(aspectRatio ?: (3f / 4f))
-                                .padding(16.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.DarkGray)
                                 .graphicsLayer {
-                                    rotationY = 180f
+                                    scaleX = scale
+                                    scaleY = scale
                                 }
-                        )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = BUTTON_COLOR,
+                                modifier = Modifier
+                                    .size(30.dp)
+                            )
+                        }
                     }
+                    val density = LocalDensity.current.density
+                    Box(
+                        modifier = Modifier
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                rotationY = rotation
+                                cameraDistance = 8 * density
+                            }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { isFlipped = !isFlipped }
+                            )
+                    ) {
+
+                        if (rotation <= 90f) {
+                            AsyncImage(
+                                model = selectedImageUrl,
+                                contentDescription = "Full screen image",
+                                onState = { state ->
+                                    if (state is AsyncImagePainter.State.Success) {
+                                        val size = state.painter.intrinsicSize
+                                        if (size.height > 0f) {
+                                            aspectRatio = size.width / size.height
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(aspectRatio ?: (3f / 4f))
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.DarkGray)
+                                    .graphicsLayer {
+                                        rotationY = 180f
+                                    }
+                            )
+                        }
+                    }
+
                 }
             }
         }
@@ -295,9 +370,6 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
 @Composable
 fun ImageCard(imageUrl: String,
               columns: Int,
-              gameId: Int,
-              onDelete: (Int) -> Unit,
-              removeCover: (String) -> Unit,
               onClick: () -> Unit,
               modifier: Modifier = Modifier,
               title: String) {
@@ -349,4 +421,3 @@ fun ImageCard(imageUrl: String,
         )
     }
 }
-

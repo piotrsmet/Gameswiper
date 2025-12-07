@@ -10,6 +10,7 @@ import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.userDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 class GamesViewModel(): ViewModel() {
@@ -54,7 +56,8 @@ class GamesViewModel(): ViewModel() {
     private val _userDisplay = MutableStateFlow<UserDisplay>(UserDisplay())
     val userDisplay = _userDisplay.asStateFlow()
 
-
+    private val _savedGames = MutableStateFlow<List<Game>>(emptyList())
+    val savedGames = _savedGames.asStateFlow()
 
     private val dataStoreKey = stringPreferencesKey("CARDS")
 
@@ -234,19 +237,22 @@ class GamesViewModel(): ViewModel() {
         _userDisplay.value = userDisplay
     }
 
-    fun fetchImages2(context: Context, gamesWrapper: GamesWrapper, gameRepository: GameRepository){
+    fun fetchImages2(context: Context, gamesWrapper: GamesWrapper, gameRepository: GameRepository, onComplete: (() -> Unit)? = null){
         viewModelScope.launch {
             val gamesRep = gameRepository.getGames()
-            val coversId = mutableListOf<Int>()
-            for(game in gamesRep){
-                coversId.add(game.cover)
-                _coverId.value = coversId
+            val coversId = gamesRep.map { it.cover }
+
+            val result = if (gamesRep.isNotEmpty()) {
+                gamesWrapper.wrapImages(context, coversId)
+            } else {
+                emptyList()
             }
-            if(gamesRep.isNotEmpty()) {
-                val result = gamesWrapper.wrapImages(context, coversId)
-                if (result != null) {
-                    _images2.value = result as MutableList<String>
-                }
+
+            withContext(Dispatchers.Main) {
+                _savedGames.value = gamesRep
+                _coverId.value = coversId
+                _images2.value = result?.toMutableList() ?: mutableListOf()
+                onComplete?.invoke()
             }
         }
     }
