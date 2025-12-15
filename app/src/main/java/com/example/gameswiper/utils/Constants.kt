@@ -9,11 +9,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.example.gameswiper.R
 import com.example.gameswiper.model.Genre
 import com.example.gameswiper.model.Platform
+import com.example.gameswiper.BuildConfig
 
-val CLIENT_ID = "p974jcjhdift50t7313a0qaopxe37x"
-val CLIENT_SECRET =  "is0rxe8d3fab4oyt16o5fvlsc92wmi"
-var ACCESS_TOKEN: String? = "r3vh3ilrb4wbhme7sbdumjsv8i3cwq"
-var EXPIRES_IN: Long = 4832829
+val CLIENT_ID = BuildConfig.CLIENT_ID
+val CLIENT_SECRET =  BuildConfig.CLIENT_SECRET
+var ACCESS_TOKEN: String? = BuildConfig.ACCESS_TOKEN
+var EXPIRES_IN: Long = BuildConfig.EXPIRES_IN.toLong()
 val MAX_GAME_ID = 377600
 val Context.userDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "userData"

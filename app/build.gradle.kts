@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
     alias(libs.plugins.compose.compiler)
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 
 }
 
@@ -41,6 +42,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -62,7 +64,7 @@ dependencies {
         exclude(group = "com.google.protobuf", module = "protobuf-kotlin")
     }
 
-
+    implementation("com.google.android.libraries.mapsplatform.secrets-gradle-plugin:secrets-gradle-plugin:2.0.1")
     implementation("androidx.datastore:datastore-preferences:1.2.0")
     implementation("androidx.datastore:datastore-preferences-core:1.2.0")
     implementation("androidx.core:core-splashscreen:1.0.0")
