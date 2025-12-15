@@ -4,12 +4,14 @@ import com.example.gameswiper.composable.ImageBackgroundAuth
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import com.example.gameswiper.ui.theme.GameswiperTheme
 import com.google.firebase.auth.FirebaseAuth
 
@@ -33,6 +35,15 @@ class LogInActivity : ComponentActivity(){
 
                 }
             }
+        }
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.isAppearanceLightNavigationBars = false
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
         }
     }
     fun loggedIn(){

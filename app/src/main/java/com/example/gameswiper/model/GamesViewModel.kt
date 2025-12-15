@@ -23,6 +23,7 @@ import kotlinx.coroutines.withContext
 
 class GamesViewModel(): ViewModel() {
 
+    // ===== SWINGING SCREEN - IMAGES & VIDEOS =====
     private val _images = MutableStateFlow<List<String>>(emptyList())
     val images = _images.asStateFlow()
 
@@ -38,12 +39,20 @@ class GamesViewModel(): ViewModel() {
     private val _games = MutableStateFlow<List<Game>>(emptyList())
     val games = _games.asStateFlow()
 
+    // ===== LIBRARY SCREEN - SAVED GAMES & IMAGES =====
+    private val _savedGames = MutableStateFlow<List<Game>>(emptyList())
+    val savedGames = _savedGames.asStateFlow()
+
+    private val _gameIds = MutableStateFlow<List<Int>>(emptyList())
+    val gameIds = _gameIds.asStateFlow()
+
     private val _images2 = MutableStateFlow<MutableList<String>>(mutableListOf())
     val images2 = _images2.asStateFlow()
 
-    private val _coverId = MutableStateFlow<List<Int>>(emptyList())
-    val coverId = _coverId.asStateFlow()
+    private val _videos2 = MutableStateFlow<MutableList<String>>(mutableListOf())
+    val videos2 = _videos2.asStateFlow()
 
+    // ===== USER PREFERENCES & SETTINGS =====
     private val _selectedGenres = MutableStateFlow<Set<Int>>(emptySet())
     val selectedGenres = _selectedGenres.asStateFlow()
 
@@ -53,28 +62,15 @@ class GamesViewModel(): ViewModel() {
     private val _userPreferences = MutableStateFlow<HashMap<String, Int>>(HashMap())
     val userPreferences = _userPreferences.asStateFlow()
 
+    // ===== USER DISPLAY & PROFILE =====
     private val _userDisplay = MutableStateFlow<UserDisplay>(UserDisplay())
     val userDisplay = _userDisplay.asStateFlow()
 
-    private val _savedGames = MutableStateFlow<List<Game>>(emptyList())
-    val savedGames = _savedGames.asStateFlow()
+    private val _friends = MutableStateFlow<List<UserDisplay>>(emptyList())
+    val friends = _friends.asStateFlow()
 
+    // ===== DATASTORE =====
     private val dataStoreKey = stringPreferencesKey("CARDS")
-
-    fun fetchUserPreferences(userRepository: UserRepository){
-        viewModelScope.launch {
-            val prefsRep = userRepository.getUserPreferences()
-            _userPreferences.value = prefsRep
-        }
-    }
-
-    fun saveUserPreferences(userRepository: UserRepository){
-        userRepository.setUserPreferences(_userPreferences.value)
-    }
-
-    fun updateUserDisplay(userDisplay: UserDisplay){
-        _userDisplay.value = userDisplay
-    }
 
     fun clearDataStore(context: Context){
         val dataStore = context.userDataStore
@@ -102,7 +98,6 @@ class GamesViewModel(): ViewModel() {
 
     }
 
-
     fun saveCardsToDataStore(context: Context){
         val dataStore = context.userDataStore
         val stringValue = _gameCards.value.map { it.game.id }.joinToString(separator = ",")
@@ -111,6 +106,23 @@ class GamesViewModel(): ViewModel() {
                 userData[dataStoreKey] = stringValue
             }
         }
+    }
+
+    // ===== USER PREFERENCES & SETTINGS OPERATIONS =====
+    fun fetchUserPreferences(userRepository: UserRepository){
+        viewModelScope.launch {
+            val prefsRep = userRepository.getUserPreferences()
+            _userPreferences.value = prefsRep
+            Log.i("FETCHED PREFS", prefsRep.toString())
+        }
+    }
+
+    fun saveUserPreferences(userRepository: UserRepository){
+        userRepository.setUserPreferences(_userPreferences.value)
+    }
+
+    fun updateUserDisplay(userDisplay: UserDisplay){
+        _userDisplay.value = userDisplay
     }
 
     private fun updatePositivePreferences(idList: List<Int>){
@@ -123,8 +135,10 @@ class GamesViewModel(): ViewModel() {
         }
     }
 
+    // ===== SWIPE OPERATIONS & STATISTICS =====
     fun swipedRight(idList: List<Int>){
         updatePositivePreferences(idList)
+
         _userDisplay.update { display ->
             display.copy(
                 swiped = display.swiped + 1,
@@ -132,7 +146,6 @@ class GamesViewModel(): ViewModel() {
             )
         }
     }
-
 
     private fun updateNegativePreferences(idList: List<Int>){
         _userPreferences.update{ currentMap ->
@@ -183,6 +196,7 @@ class GamesViewModel(): ViewModel() {
         return idList
     }
 
+    // ===== GENRE & PLATFORM SELECTION =====
     fun addPlatform(id: Int){
         _selectedPlatforms.value = _selectedPlatforms.value.toMutableSet().apply { add(id) }
     }
@@ -199,22 +213,12 @@ class GamesViewModel(): ViewModel() {
         _selectedGenres.value = _selectedGenres.value.toMutableSet().apply { remove(id) }
     }
 
-    fun removeGame(){
-        _games.value = _games.value.toMutableList().apply { removeAt(0) }
-    }
-
-    fun removeImage(){
-        _images.value = _images.value.toMutableList().apply { removeAt(0)}
-    }
-
-    fun removeVideo(){
-        _videos.value = _videos.value.toMutableList().apply { removeAt(0) }
-    }
 
     fun removeCard(){
         _gameCards.update { it.drop(1) }
     }
 
+    // ===== IMAGE & VIDEO FETCHING =====
     suspend fun fetchImages(context: Context, imageIds: List<Int>, gamesWrapper: GamesWrapper): List<String> {
         val result = gamesWrapper.wrapImages(context, imageIds)
         return result ?: emptyList()
@@ -225,6 +229,7 @@ class GamesViewModel(): ViewModel() {
         return result ?: emptyList()
     }
 
+    // ===== USER DISPLAY OPERATIONS =====
     fun fetchUserDisplay(userRepository: UserRepository){
         viewModelScope.launch {
             val userDisplayRep = userRepository.getUserDisplay()
@@ -232,26 +237,52 @@ class GamesViewModel(): ViewModel() {
         }
     }
 
+
     fun setUserDisplay(userRepository: UserRepository, userDisplay: UserDisplay){
         userRepository.setUserDisplay(userDisplay)
         _userDisplay.value = userDisplay
     }
 
+    fun addFriend(userRepository: UserRepository, friendId: String){
+        viewModelScope.launch{
+            val newFriend = userRepository.addFriend(friendId)
+            if(newFriend != null){
+                _friends.update { currentFriends ->
+                    currentFriends + newFriend
+                }
+            }
+        }
+    }
+
+    fun fetchFriends(userRepository: UserRepository){
+        viewModelScope.launch {
+            val friendsRep = userRepository.getFriends()
+            _friends.value = friendsRep
+        }
+    }
+
     fun fetchImages2(context: Context, gamesWrapper: GamesWrapper, gameRepository: GameRepository, onComplete: (() -> Unit)? = null){
         viewModelScope.launch {
             val gamesRep = gameRepository.getGames()
-            val coversId = gamesRep.map { it.cover }
+            val gameIds = gamesRep.map { it.id }
 
             val result = if (gamesRep.isNotEmpty()) {
-                gamesWrapper.wrapImages(context, coversId)
+                gamesWrapper.wrapImages(context, gamesRep.map { it.cover })
+            } else {
+                emptyList()
+            }
+
+            val videos = if (gamesRep.isNotEmpty()) {
+                gamesWrapper.wrapVideos(gamesRep.map { it.video })
             } else {
                 emptyList()
             }
 
             withContext(Dispatchers.Main) {
                 _savedGames.value = gamesRep
-                _coverId.value = coversId
+                _gameIds.value = gameIds
                 _images2.value = result?.toMutableList() ?: mutableListOf()
+                _videos2.value = videos?.toMutableList() ?: mutableListOf()
                 onComplete?.invoke()
             }
         }
@@ -272,12 +303,55 @@ class GamesViewModel(): ViewModel() {
         }
     }
 
-    fun removeImage2(id: String){
-        val index = _images2.value.indexOf(id)
-        _images2.value = _images2.value.toMutableList().apply { remove(id) }
-        _coverId.value = _coverId.value.toMutableList().apply { removeAt(index) }
+    // ===== LIBRARY OPERATIONS - SAVED GAMES =====
+    private fun removeGame(game: Game) {
+        _savedGames.update { currentGames ->
+            currentGames.filter { it.id != game.id }
+        }
+        _images2.update { currentImages ->
+            currentImages.toMutableList().apply {
+                val index = _gameIds.value.indexOf(game.id)
+                if (index >= 0) {
+                    removeAt(index)
+                }
+            }
+        }
+        _gameIds.update { currentIds ->
+            currentIds.filter { it != game.id }
+        }
     }
 
+    private fun likeGame(id : Int) {
+        _savedGames.update { currentGames ->
+            currentGames.map {
+                if (it.id == id) {
+                    it.copy(liked = !it.liked)
+                } else {
+                    it
+                }
+            }
+        }
+    }
+
+    fun addGame(context: Context, game: Game, gameRepository: GameRepository, gamesWrapper: GamesWrapper){
+        viewModelScope.launch {
+            gameRepository.addGame(game)
+            val images = gamesWrapper.wrapImages(
+                context = context,
+                imageIds = mutableListOf(game.cover)
+            ) ?: mutableListOf("")
+            _images2.update { currentImages ->
+                (currentImages + images[0]).toMutableList()
+            }
+            _savedGames.update { currentGames ->
+                currentGames + game
+            }
+            _gameIds.update { currentIds ->
+                currentIds + game.id
+            }
+        }
+    }
+    // ===== FETCH GAMES FROM API =====
     fun fetchGames(context: Context, genres: List<Int>, platforms: List<Int>, gamesWrapper: GamesWrapper){
         viewModelScope.launch {
             val gamesResult = gamesWrapper.wrapGames(context, genres, platforms) ?: return@launch
@@ -287,11 +361,16 @@ class GamesViewModel(): ViewModel() {
             val imageIds = gamesResult.map { it.cover }
             val videoIds = gamesResult.map { it.video }
 
+            if(imageIds.isEmpty() || videoIds.isEmpty()){
+                return@launch
+            }
+
             val imagesResult = fetchImages(context, imageIds, gamesWrapper)
             val videosResult = fetchVideos(context, videoIds, gamesWrapper)
             _images.update { it + imagesResult }
             _videos.update { it + videosResult }
-            Log.i("GAMES IMAGES VIDEOS", _games.value.size.toString() + " " + _images.value.size.toString() + " " + _videos.value.size.toString())
+            Log.i("GAMES IMAGES VIDEOS", _games.value.size.toString() + " " +
+                    _images.value.size.toString() + " " + _videos.value.size.toString())
             for (i in gamesResult.indices) {
                 val card = GameCard(
                     gamesResult[i],
@@ -299,13 +378,12 @@ class GamesViewModel(): ViewModel() {
                     videosResult[i]
                 )
                 _gameCards.update { it + card }
-
-
             }
         }
     }
 
-    fun fetchGames(context: Context, genres: List<Int>, platforms: List<Int>, gamesWrapper: GamesWrapper, idsList: List<Int>){
+    fun fetchGames(context: Context, genres: List<Int>, platforms: List<Int>,
+                   gamesWrapper: GamesWrapper, idsList: List<Int>){
         viewModelScope.launch {
             val gamesResult = gamesWrapper.wrapGames(context, genres, platforms, idsList) ?: return@launch
 
@@ -318,7 +396,8 @@ class GamesViewModel(): ViewModel() {
             val videosResult = fetchVideos(context, videoIds, gamesWrapper)
             _images.update { it + imagesResult }
             _videos.update { it + videosResult }
-            Log.i("GAMES IMAGES VIDEOS", _games.value.size.toString() + " " + _images.value.size.toString() + " " + _videos.value.size.toString())
+            Log.i("GAMES IMAGES VIDEOS2", _games.value.size.toString() + " " +
+                    _images.value.size.toString() + " " + _videos.value.size.toString())
             for (i in gamesResult.indices) {
                 val card = GameCard(
                     gamesResult[i],
@@ -326,7 +405,6 @@ class GamesViewModel(): ViewModel() {
                     videosResult[i]
                 )
                 _gameCards.update { it + card }
-
 
             }
         }
@@ -338,5 +416,30 @@ class GamesViewModel(): ViewModel() {
                 _currentIndex.value = (_currentIndex.value + 1) % 500
             }
         }
+    }
+
+    // ===== HELPER METHODS =====
+
+    /**
+     * Pobiera grę po jej Game ID
+     */
+    fun getGameById(gameId: Int): Game? {
+        return _savedGames.value.find { it.id == gameId }
+    }
+
+    /**
+     * Usuwa grę po Game ID
+     */
+    fun deleteGameById(gameId: Int) {
+        _savedGames.value.find { it.id == gameId }?.let { game ->
+            removeGame(game)
+        }
+    }
+
+    /**
+     * Zmienia stan like dla gry po Game ID
+     */
+    fun toggleLikeById(gameId: Int) {
+        likeGame(gameId)
     }
 }

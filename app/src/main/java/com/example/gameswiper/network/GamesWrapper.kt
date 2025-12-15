@@ -199,7 +199,7 @@ class GamesWrapper{
             postfix = ")"
         )
 
-        val idString = List<Int>(200){
+        val idString = List<Int>(100){
             Random.nextInt(1, MAX_GAME_ID)}
             .joinToString(
                 separator = ",",
@@ -213,7 +213,8 @@ class GamesWrapper{
                 val apiCalypse = APICalypse()
                     .fields("id, cover, videos, genres, platforms, name, themes, summary, similar_games")
                     .limit(200)
-                    .where("id = $idString & genres = $genresString & platforms = $platformsString & themes != null & summary != null & cover != null  & themes != 42")
+                    .where("id = $idString & genres = $genresString & platforms = $platformsString " +
+                            "& themes != null & summary != null & cover != null  & themes != 42")
                 json = IGDBWrapper.jsonGames(apiCalypse)
                 var gamesList = parseJsonToGamesList(json).shuffled()
 
@@ -230,8 +231,7 @@ class GamesWrapper{
                     .limit(500)
                 val json2 = IGDBWrapper.jsonPopularityPrimitives(apiCalypse2)
                 val popularityList = parseJsonToPopularityList(json2)
-                val filteredGamesList = gamesList.filter{ game -> popularityList.any{
-                        pair ->
+                val filteredGamesList = gamesList.filter{ game -> popularityList.any{ pair ->
                             pair.first == game.id && pair.second!! > 0.00002
                     }}
                 Log.i("POPULAIRTY", filteredGamesList.size.toString())
@@ -275,7 +275,8 @@ class GamesWrapper{
                 val apiCalypse = APICalypse()
                     .fields("id, cover, videos, genres, platforms, name, themes, summary, similar_games")
                     .limit(200)
-                    .where("id = $idString & genres = $genresString & platforms = $platformsString & themes != null & summary != null & cover != null  & themes != 42")
+                    .where("id = $idString & genres = $genresString & platforms = $platformsString " +
+                            "& themes != null & summary != null & cover != null  & themes != 42")
                 json = IGDBWrapper.jsonGames(apiCalypse)
                 val gamesList = parseJsonToGamesList(json)
 
@@ -286,12 +287,6 @@ class GamesWrapper{
                 null
             }
         }
-    }
-
-
-    fun getImage(imageId: String): String{
-        val imageURL = imageBuilder(imageId, ImageSize.FHD, ImageType.PNG)
-        return imageURL
     }
 
 }

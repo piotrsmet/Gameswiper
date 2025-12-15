@@ -1,6 +1,7 @@
 package com.example.gameswiper.repository
 
 import android.util.Log
+import com.example.gameswiper.model.Friend
 import com.example.gameswiper.model.Settings
 import com.example.gameswiper.model.UserDisplay
 import com.google.firebase.auth.FirebaseAuth
@@ -15,13 +16,22 @@ class UserRepository {
 
 
     fun setUserDisplay(userDisplay: UserDisplay){
+
         if(user != null){
+            val userDisplay2 = UserDisplay(
+                user.uid,
+                userDisplay.name,
+                userDisplay.profilePicture,
+                userDisplay.swiped,
+                userDisplay.liked,
+                userDisplay.disliked
+            )
             firestore
                 .collection("users")
                 .document(user.uid)
                 .collection("userDisplay")
                 .document(user.uid)
-                .set(userDisplay)
+                .set(userDisplay2)
                 .addOnSuccessListener { Log.i("suckess", "suckess") }
                 .addOnFailureListener { Log.e("failureee", it.message.toString()) }
 
@@ -96,6 +106,62 @@ class UserRepository {
             }
         }
         return prefs
+    }
+
+    suspend fun getFriends(): List<UserDisplay>{
+        val friends = mutableListOf<UserDisplay>()
+        if(user != null){
+            val snapshot = firestore
+                .collection("users")
+                .document(user.uid)
+                .collection("friends")
+                .get()
+                .await()
+
+            if(!snapshot.isEmpty){
+                val snapshot2 = firestore.collectionGroup("userDisplay")
+                    .whereIn("name", snapshot.documents.map { it.getString("name") })
+                    .get()
+                    .await()
+                friends.addAll(snapshot2.toObjects(UserDisplay::class.java))
+            }
+        }
+        return friends
+    }
+
+    suspend fun addFriend(friendName: String): UserDisplay? {
+        if (user == null) return null
+
+        return try {
+            val snapshot = firestore.collectionGroup("userDisplay")
+                .whereEqualTo("name", friendName)
+                .limit(1)
+                .get()
+                .await()
+
+            if (!snapshot.isEmpty) {
+                val friendDisplay = snapshot.documents[0].toObject(UserDisplay::class.java)
+                if (friendDisplay != null) {
+                    firestore
+                        .collection("users")
+                        .document(user.uid)
+                        .collection("friends")
+                        .document(friendDisplay.id)
+                        .set(Friend(friendName))
+                        .await()
+
+                    Log.i("UserRepository", "Friend added: ${friendDisplay.name}")
+
+                    return friendDisplay
+                }
+            } else {
+                Log.i("UserRepository", "User not found")
+            }
+            null
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error adding friend: ${e.message}")
+            null
+        }
     }
 
 

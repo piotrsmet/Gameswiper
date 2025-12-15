@@ -29,8 +29,8 @@ val AVATARS = listOf(
 
 val DOMINANT_COLOR = Color(0xFF0C011E)
 val SECOND_COLOR = Color(0xFF0D0115)
-val BUTTON_COLOR = Color(0xFFFF3F7F)
-val DETAILS_COLOR = Color(0xFFFFC400)
+val BUTTON_COLOR = Color(0xFFF93827)
+val DETAILS_COLOR = Color(0xFF0079FF)
 
 val PLATFORMS: List<Platform> = listOf(
     Platform(6, "PC"),

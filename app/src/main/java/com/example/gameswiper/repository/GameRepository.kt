@@ -33,7 +33,9 @@ class GameRepository{
                 .collection("games")
                 .get()
                 .await()
+
             games.addAll(snapshot.toObjects(Game::class.java))
+
         }
         return games
     }
@@ -44,13 +46,34 @@ class GameRepository{
                 .collection("users")
                 .document(user.uid)
                 .collection("games")
-                .whereEqualTo("cover", id)
+                .whereEqualTo("id", id)
                 .get()
                 .addOnSuccessListener { document ->
                     for(i in document){
                         i.reference.delete()
                             .addOnSuccessListener {
                                 onSuccess()
+                            }
+                    }
+                }
+                .addOnFailureListener { Log.i("Porażka", "faioldsa") }
+        }
+    }
+
+    fun likeGame(id: Int){
+        if (user != null){
+            firestore
+                .collection("users")
+                .document(user.uid)
+                .collection("games")
+                .whereEqualTo("id", id)
+                .get()
+                .addOnSuccessListener { document ->
+                    for(i in document){
+                        val isLiked = i.getBoolean("liked") ?: false
+                        i.reference.update("liked", !isLiked)
+                            .addOnSuccessListener {
+                                Log.i("Sukces", "sukces")
                             }
                     }
                 }

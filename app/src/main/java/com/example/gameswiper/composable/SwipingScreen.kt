@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -72,7 +73,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
@@ -95,6 +99,7 @@ import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.BUTTON_COLOR
 import com.example.gameswiper.utils.DETAILS_COLOR
+import com.example.gameswiper.utils.DOMINANT_COLOR
 import com.example.gameswiper.utils.GENRES
 import com.example.gameswiper.utils.PLATFORMS
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
@@ -113,7 +118,7 @@ fun SwipingScreen(
     gamesRepository: GameRepository
 ) {
     val offsetX = remember { Animatable(0f) }
-    val nextCardScale = remember { Animatable(0.80f) }
+    val nextCardScale = remember { Animatable(0.95f) }
     val nextCardOffsetY = remember { Animatable(20f) }
     val coroutineScope = rememberCoroutineScope()
     val maxRotationAngle = 15f
@@ -151,7 +156,7 @@ fun SwipingScreen(
             val preferredIds = viewModel.getPreferredGameIds()
 
             Log.i("fetched again", gameCards.size.toString())
-            if(preferredIds.size > 100){
+            if(preferredIds.size > 500){
                 viewModel.fetchGames(context,
                     viewModel.selectedGenres.value.toList(),
                     viewModel.selectedPlatforms.value.toList(),
@@ -173,20 +178,11 @@ fun SwipingScreen(
 
     val swipeProgress = (offsetX.value / 600f).coerceIn(-1f, 1f)
     val backgroundColor = when {
-        swipeProgress > 0 -> DETAILS_COLOR
+        swipeProgress > 0 -> Color(0xFF16C47F)
         swipeProgress < 0 -> BUTTON_COLOR
         else -> Color(0xFF4100B1)
     }
     val gradientAlpha = abs(swipeProgress)
-
-    val gradientBrush = Brush.linearGradient(
-        colors = listOf(
-            backgroundColor.copy(alpha = gradientAlpha * 0.4f),
-            Color.Transparent
-        ),
-        start = if (swipeProgress > 0) Offset(1000f, 0f) else Offset(0f, 0f),
-        end = if (swipeProgress > 0) Offset(-200f, 0f) else Offset(1200f, 0f)
-    )
 
     var expanded by remember { mutableStateOf(false) }
     val cardHeight by animateDpAsState(if (expanded) 730.dp else 500.dp)
@@ -214,15 +210,29 @@ fun SwipingScreen(
         imageLoader = imageLoader
     )
 
+    BackHandler {
+        if(expanded){
+            expanded = false
+        }
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(gradientBrush),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        DETAILS_COLOR,
+                        Color.Black
+                    ),
+                    startY = 400f,
+                    endY = 2000f
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         val currentGame = currentCard?.game
-        Row(Modifier.align(Alignment.BottomCenter).padding(10.dp)){
+        Row(Modifier.align(Alignment.BottomCenter).padding(30.dp)){
             IconButton(onClick = {
                 if(swipeButtonEnabled && offsetX.value.equals(0f) && currentGame != null) {
                     swipeButtonEnabled = false
@@ -235,11 +245,10 @@ fun SwipingScreen(
                         }
                         delay(250)
                         offsetX.snapTo(0f)
-                        nextCardScale.snapTo(0.80f)
+                        nextCardScale.snapTo(0.90f)
 
                         viewModel.swipedLeft(currentGame.similarGames)
                         viewModel.removeCard()
-                        viewModel.nextImage()
                         swipeButtonEnabled = true
                     }
                 }
@@ -260,7 +269,7 @@ fun SwipingScreen(
                     coroutineScope.launch {
                         offsetX.animateTo(1500f, tween(300))
 
-                        gamesRepository.addGame(currentGame)
+                        viewModel.addGame(context, currentGame, gamesRepository, wrapper)
                         viewModel.swipedRight(currentGame.similarGames)
 
                         launch {
@@ -270,10 +279,9 @@ fun SwipingScreen(
 
                         delay(250)
                         offsetX.snapTo(0f)
-                        nextCardScale.snapTo(0.80f)
+                        nextCardScale.snapTo(0.90f)
 
                         viewModel.removeCard()
-                        viewModel.nextImage()
                         swipeButtonEnabled = true
                     }
                 }
@@ -284,10 +292,40 @@ fun SwipingScreen(
                         scaleX = likeScale
                         scaleY = likeScale
                     }) {
-                Icon(painter = painterResource(R.drawable.like), tint = DETAILS_COLOR, contentDescription = "like")
+                Icon(painter = painterResource(R.drawable.like), tint = Color(0xFF16C47F), contentDescription = "like")
             }
         }
 
+        Card(
+            modifier = Modifier
+                .height(500.dp)
+                .width(370.dp)
+                .offset(0.dp , (-50).dp)
+                .scale(0.90f)
+                .graphicsLayer {
+                    rotationZ = 10f
+                }
+                .blur(1.dp, BlurredEdgeTreatment.Unbounded)
+                .background(shape = RoundedCornerShape(25.dp), color = Color.Transparent),
+            colors = CardDefaults.cardColors(Color(0xFF2CD3E1).copy(alpha = 0.5f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = RoundedCornerShape(25.dp)
+        ){}
+        Card(
+            modifier = Modifier
+                .height(500.dp)
+                .width(370.dp)
+                .offset(0.dp , (-50).dp)
+                .scale(0.95f)
+                .graphicsLayer {
+                    rotationZ = -5f
+                }
+                .blur(0.5.dp, BlurredEdgeTreatment.Unbounded)
+                .background(shape = RoundedCornerShape(25.dp), color = Color.Transparent),
+            colors = CardDefaults.cardColors(Color(0xFF00DFA2).copy(alpha = 0.5f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = RoundedCornerShape(25.dp)
+        ){}
         if (nextImage != null) {
             Card(
                 modifier = Modifier
@@ -296,19 +334,56 @@ fun SwipingScreen(
                     .graphicsLayer {
                         scaleX = nextCardScale.value
                         scaleY = nextCardScale.value
-                        //translationY = nextCardOffsetY.value
-                        alpha = 0.9f
                     },
                 colors = CardDefaults.cardColors(Color.Transparent),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                shape = RoundedCornerShape(25.dp)
             ) {
-                AsyncImage(
-                    model = nextImage,
-                    contentDescription = "Next card",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    imageLoader = imageLoader,
-                )
+                Box(modifier.fillMaxSize()) {
+                    AsyncImage(
+                        model = nextImage,
+                        contentDescription = "Next card",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        imageLoader = imageLoader,
+                    )
+                    Column {
+                        AnimatedVisibility(
+                            visible = !expanded,
+                            enter = fadeIn(tween(300)),
+                            exit = fadeOut(tween(200))
+                        ){
+                            Box(modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color.Black.copy(alpha = 0.85f),
+                                            Color.Transparent
+                                        ),
+                                        startY = 1000f,
+                                        endY = 0f
+                                    )
+                                )
+                            ){
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.BottomStart
+                                ) {
+                                    Text(
+                                        text = nextCard.game.name ?: "",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
             }
         }
 
@@ -329,15 +404,15 @@ fun SwipingScreen(
                     indication = null,
                     onClick = { expanded = !expanded }
                 )
-                .pointerInput(expanded, swipeButtonEnabled) { // Dodano swipeButtonEnabled jako klucz
-                    if(!expanded && currentGame != null && swipeButtonEnabled){ // Dodano warunek swipeButtonEnabled
+                .pointerInput(expanded, swipeButtonEnabled) {
+                    if(!expanded && currentGame != null && swipeButtonEnabled){
                         detectDragGestures(
                             onDrag = { change, dragAmount ->
                                 change.consume()
                                 coroutineScope.launch {
                                     offsetX.snapTo(offsetX.value + dragAmount.x)
                                     val progress = (offsetX.value / 300f).coerceIn(-1f, 1f)
-                                    nextCardScale.snapTo(0.80f + (0.10f * abs(progress)))
+                                    nextCardScale.snapTo(0.90f + (0.05f * abs(progress)))
 
                                 }
                             },
@@ -350,10 +425,10 @@ fun SwipingScreen(
                                     }
 
                                     if (targetValue != 0f) {
-                                        swipeButtonEnabled = false // Zablokuj kolejne przesunięcia
+                                        swipeButtonEnabled = false
                                         offsetX.animateTo(targetValue, tween(300))
                                         if (offsetX.value > 0f) {
-                                            gamesRepository.addGame(currentGame)
+                                            viewModel.addGame(context, currentGame, gamesRepository, wrapper)
                                             viewModel.swipedRight(currentGame.similarGames)
                                         }
                                         else {
@@ -365,14 +440,14 @@ fun SwipingScreen(
                                         }
                                         delay(250)
                                         offsetX.snapTo(0f)
-                                        nextCardScale.snapTo(0.80f)
+                                        nextCardScale.snapTo(0.90f)
 
                                         viewModel.removeCard()
                                         viewModel.nextImage()
                                         swipeButtonEnabled = true // Odblokuj po zakończeniu
                                     } else {
                                         offsetX.animateTo(0f, tween(300))
-                                        nextCardScale.animateTo(0.95f, tween(300))
+                                        nextCardScale.animateTo(0.90f, tween(300))
                                         nextCardOffsetY.animateTo(20f, tween(300))
                                     }
                                 }
@@ -381,23 +456,86 @@ fun SwipingScreen(
                     }
                 },
             colors = CardDefaults.cardColors(Color.Transparent),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = RoundedCornerShape(25.dp)
         ) {
 
             Box() {
                 if (painter.state.value is AsyncImagePainter.State.Loading
                     || painter.state.value is AsyncImagePainter.State.Empty) {
                     ShimmerCard(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize().background(Color(0xFF2CD3E1))
                     )
                 }
-                Image(
-                    painter = painter,
-                    contentDescription = "Game image",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                if(currentGame != null) {
+                Box(Modifier.fillMaxSize()) {
+                    Image(
+                        painter = painter,
+                        contentDescription = "Game image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    Column {
+                        AnimatedVisibility(
+                            visible = !expanded,
+                            enter = fadeIn(tween(300)),
+                            exit = fadeOut(tween(200))
+                        ){
+                            Box(modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color.Black.copy(alpha = 0.85f),
+                                            Color.Transparent
+                                        ),
+                                        startY = 1000f,
+                                        endY = 0f
+                                    )
+                                )
+                            ){
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.BottomStart
+                                ) {
+                                    Text(
+                                        text = currentGame?.name ?: "",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .background(backgroundColor.copy(alpha = gradientAlpha)),
+                    contentAlignment = Alignment.Center){
+                    if(swipeProgress < 0)
+                        Icon(painter = painterResource(R.drawable.dislike), contentDescription = "dislike",
+                            tint = Color.Red,
+                            modifier = Modifier
+                                .size(120.dp)
+                                .graphicsLayer {
+                                    alpha = (-swipeProgress).coerceIn(0f, 1f)
+                                }
+                        )
+                    else
+                    Icon(painter = painterResource(R.drawable.like), contentDescription = "like",
+                        tint = Color.Green,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .graphicsLayer {
+                                alpha = swipeProgress.coerceIn(0f, 1f)
+                            }
+                    )
+                }
+
+                if(currentGame != null && swipeButtonEnabled) {
                     Column {
                         AnimatedVisibility(
                             visible = expanded,
