@@ -40,17 +40,10 @@ class GamesViewModel(): ViewModel() {
     val games = _games.asStateFlow()
 
     // ===== LIBRARY SCREEN - SAVED GAMES & IMAGES =====
-    private val _savedGames = MutableStateFlow<List<Game>>(emptyList())
-    val savedGames = _savedGames.asStateFlow()
 
-    private val _gameIds = MutableStateFlow<List<Int>>(emptyList())
-    val gameIds = _gameIds.asStateFlow()
+    private val _savedGamesWithMedia = MutableStateFlow<List<GameWithMedia>>(emptyList())
+    val savedGamesWithMedia = _savedGamesWithMedia.asStateFlow()
 
-    private val _images2 = MutableStateFlow<MutableList<String>>(mutableListOf())
-    val images2 = _images2.asStateFlow()
-
-    private val _videos2 = MutableStateFlow<MutableList<String>>(mutableListOf())
-    val videos2 = _videos2.asStateFlow()
 
     // ===== USER PREFERENCES & SETTINGS =====
     private val _selectedGenres = MutableStateFlow<Set<Int>>(emptySet())
@@ -75,8 +68,12 @@ class GamesViewModel(): ViewModel() {
     fun clearDataStore(context: Context){
         val dataStore = context.userDataStore
         viewModelScope.launch {
-            dataStore.edit { userData ->
-                userData[dataStoreKey] = ""
+            try {
+                dataStore.edit { userData ->
+                    userData[dataStoreKey] = ""
+                }
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error clearing Datastore", e)
             }
         }
     }
@@ -93,17 +90,19 @@ class GamesViewModel(): ViewModel() {
                         .split(",")
                         .mapNotNull { it.trim().toIntOrNull() }
                 }
-
             }
-
     }
 
     fun saveCardsToDataStore(context: Context){
         val dataStore = context.userDataStore
         val stringValue = _gameCards.value.map { it.game.id }.joinToString(separator = ",")
         viewModelScope.launch {
-            dataStore.edit { userData ->
-                userData[dataStoreKey] = stringValue
+            try {
+                dataStore.edit { userData ->
+                    userData[dataStoreKey] = stringValue
+                }
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error saving to Datastore", e)
             }
         }
     }
@@ -111,19 +110,43 @@ class GamesViewModel(): ViewModel() {
     // ===== USER PREFERENCES & SETTINGS OPERATIONS =====
     fun fetchUserPreferences(userRepository: UserRepository){
         viewModelScope.launch {
-            val prefsRep = userRepository.getUserPreferences()
-            _userPreferences.value = prefsRep
-            Log.i("FETCHED PREFS", prefsRep.toString())
+            try {
+                val prefsRep = userRepository.getUserPreferences()
+                _userPreferences.value = prefsRep
+                Log.i("FETCHED PREFS", prefsRep.toString())
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error fetching user preferences", e)
+            }
         }
     }
 
     fun saveUserPreferences(userRepository: UserRepository){
-        userRepository.setUserPreferences(_userPreferences.value)
+        // To wywołanie nie jest w korutynie w oryginalnym kodzie, ale powinno być bezpieczne
+        // jeśli repository obsługuje wątki. Jeśli nie, warto to owinąć w viewModelScope.launch(Dispatchers.IO)
+        try {
+            userRepository.setUserPreferences(_userPreferences.value)
+        } catch (e: Exception) {
+            Log.e("GamesViewModel", "Error saving user preferences", e)
+        }
     }
 
     fun updateUserDisplay(userDisplay: UserDisplay){
-        _userDisplay.value = userDisplay
+        val favouriteGenreId = getFavouriteGenre()
+        _userDisplay.value = userDisplay.copy(favouriteGenre = favouriteGenreId ?: 0)
     }
+
+    fun getFavouriteGenre(): Int? {
+        val genreCounts = mutableMapOf<Int, Int>()
+
+        _savedGamesWithMedia.value.forEach { gameWithMedia ->
+            gameWithMedia.game.genres.forEach { genreId ->
+                genreCounts[genreId] = (genreCounts[genreId] ?: 0) + 1
+            }
+        }
+
+        return genreCounts.maxByOrNull { it.value }?.key
+    }
+
 
     private fun updatePositivePreferences(idList: List<Int>){
         _userPreferences.update { currentMap ->
@@ -135,15 +158,21 @@ class GamesViewModel(): ViewModel() {
         }
     }
 
-    // ===== SWIPE OPERATIONS & STATISTICS =====
-    fun swipedRight(idList: List<Int>){
-        updatePositivePreferences(idList)
 
+    // ===== SWIPE OPERATIONS & STATISTICS =====
+    fun swipedRight(idList: List<Int>, userRepository: UserRepository){
+        updatePositivePreferences(idList)
+        val favouriteGenreId = getFavouriteGenre()
         _userDisplay.update { display ->
             display.copy(
                 swiped = display.swiped + 1,
-                liked = display.liked + 1
+                liked = display.liked + 1,
+                favouriteGenre = favouriteGenreId ?: display.favouriteGenre
             )
+        }
+
+        viewModelScope.launch {
+            userRepository.setUserDisplay(_userDisplay.value)
         }
     }
 
@@ -164,13 +193,18 @@ class GamesViewModel(): ViewModel() {
         }
     }
 
-    fun swipedLeft(idList: List<Int>){
+    fun swipedLeft(idList: List<Int>, userRepository: UserRepository){
         updateNegativePreferences(idList)
         _userDisplay.update { display ->
             display.copy(
                 swiped = display.swiped + 1,
                 disliked = display.disliked + 1
             )
+        }
+
+        // Zapisz zaktualizowane statystyki do Firebase
+        viewModelScope.launch {
+            userRepository.setUserDisplay(_userDisplay.value)
         }
     }
 
@@ -219,113 +253,183 @@ class GamesViewModel(): ViewModel() {
     }
 
     // ===== IMAGE & VIDEO FETCHING =====
+    // Te metody są suspend, więc obsługę błędów lepiej robić w miejscu wywołania
+    // lub tutaj, zwracając pusty wynik. Dla bezpieczeństwa dodaję try-catch.
     suspend fun fetchImages(context: Context, imageIds: List<Int>, gamesWrapper: GamesWrapper): List<String> {
-        val result = gamesWrapper.wrapImages(context, imageIds)
-        return result ?: emptyList()
+        return try {
+            val result = gamesWrapper.wrapImages(context, imageIds)
+            result ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("GamesViewModel", "Error fetching images", e)
+            emptyList()
+        }
     }
 
+    //ihyrf2jfpIk
     suspend fun fetchVideos(context: Context, videoIds: List<Int>, gamesWrapper: GamesWrapper): List<String>{
-        val result = gamesWrapper.wrapVideos(videoIds)
-        return result ?: emptyList()
+        return try {
+            val result = gamesWrapper.wrapVideos(videoIds)
+            Log.i("VIDEOS FETCHED", result?.toString() ?: "null")
+            result ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("GamesViewModel", "Error fetching videos", e)
+            emptyList()
+        }
     }
 
     // ===== USER DISPLAY OPERATIONS =====
     fun fetchUserDisplay(userRepository: UserRepository){
         viewModelScope.launch {
-            val userDisplayRep = userRepository.getUserDisplay()
-            _userDisplay.value = userDisplayRep
+            try {
+                val userDisplayRep = userRepository.getUserDisplay()
+                _userDisplay.value = userDisplayRep
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error fetching user display", e)
+            }
+        }
+    }
+
+    fun updateAvatar(userRepository: UserRepository, avatarIndex: Int) {
+        viewModelScope.launch {
+            userRepository.updateAvatar(avatarIndex)
+            _userDisplay.update { it.copy(profilePicture = avatarIndex.toString()) }
         }
     }
 
 
     fun setUserDisplay(userRepository: UserRepository, userDisplay: UserDisplay){
-        userRepository.setUserDisplay(userDisplay)
-        _userDisplay.value = userDisplay
+        viewModelScope.launch {
+            try {
+                // Przenieś to do IO dla bezpieczeństwa
+                withContext(Dispatchers.IO) {
+                    userRepository.setUserDisplay(userDisplay)
+                }
+                _userDisplay.value = userDisplay
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error setting user display", e)
+            }
+        }
     }
 
-    fun addFriend(userRepository: UserRepository, friendId: String){
-        viewModelScope.launch{
-            val newFriend = userRepository.addFriend(friendId)
-            if(newFriend != null){
-                _friends.update { currentFriends ->
-                    currentFriends + newFriend
+    fun addFriend(userRepository: UserRepository, friendName: String, onResult: (Int) -> Unit) {
+
+        if(friendName == _userDisplay.value.name){
+            onResult(3)
+            return
+        }
+        if (_friends.value.any { it.name == friendName }) {
+            onResult(2)
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val newFriend = withContext(Dispatchers.IO) { userRepository.addFriend(friendName) }
+                if (newFriend != null) {
+                    _friends.update { current -> current + newFriend }
+                    onResult(1)
+                } else {
+                    onResult(0)
                 }
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error adding friend", e)
+                onResult(0) // Traktuj błąd jako brak znalezienia użytkownika
+            }
+        }
+    }
+
+    fun removeFriend(userRepository: UserRepository, friendName: String){
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    userRepository.deleteFriend(friendName)
+                }
+                _friends.update { current -> current.filter { it.name != friendName } }
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error removing friend", e)
             }
         }
     }
 
     fun fetchFriends(userRepository: UserRepository){
         viewModelScope.launch {
-            val friendsRep = userRepository.getFriends()
-            _friends.value = friendsRep
+            try {
+                val friendsRep = userRepository.getFriends()
+                _friends.value = friendsRep
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error fetching friends", e)
+            }
         }
     }
 
     fun fetchImages2(context: Context, gamesWrapper: GamesWrapper, gameRepository: GameRepository, onComplete: (() -> Unit)? = null){
         viewModelScope.launch {
-            val gamesRep = gameRepository.getGames()
-            val gameIds = gamesRep.map { it.id }
+            try {
+                val gamesRep = gameRepository.getGames()
+                val gameIds = gamesRep.map { it.id }
 
-            val result = if (gamesRep.isNotEmpty()) {
-                gamesWrapper.wrapImages(context, gamesRep.map { it.cover })
-            } else {
-                emptyList()
-            }
+                val result = if (gamesRep.isNotEmpty()) {
+                    gamesWrapper.wrapImages(context, gamesRep.map { it.cover })
+                } else {
+                    emptyList()
+                }
 
-            val videos = if (gamesRep.isNotEmpty()) {
-                gamesWrapper.wrapVideos(gamesRep.map { it.video })
-            } else {
-                emptyList()
-            }
+                val videos = if (gamesRep.isNotEmpty()) {
+                    gamesWrapper.wrapVideos(gamesRep.map { it.video })
+                } else {
+                    emptyList()
+                }
 
-            withContext(Dispatchers.Main) {
-                _savedGames.value = gamesRep
-                _gameIds.value = gameIds
-                _images2.value = result?.toMutableList() ?: mutableListOf()
-                _videos2.value = videos?.toMutableList() ?: mutableListOf()
-                onComplete?.invoke()
+                withContext(Dispatchers.Main) {
+                    _savedGamesWithMedia.value = gamesRep.mapIndexed { index, game ->
+                        GameWithMedia(
+                            gameIds[index],
+                            game,
+                            result?.getOrNull(index) ?: "", // Poprawka na get -> getOrNull dla bezpieczeństwa
+                            videos?.getOrNull(index) ?: ""
+                        )
+                    }
+                    onComplete?.invoke()
+                }
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error fetching library images", e)
+                onComplete?.invoke() // Wywołaj callback nawet przy błędzie, żeby UI nie wisiało
             }
         }
     }
 
     fun fetchSettings(userRepository: UserRepository, context: Context, gamesWrapper: GamesWrapper){
         viewModelScope.launch {
-            val settingsRep = userRepository.getSettings()
-            _selectedGenres.value = settingsRep.genres.toSet()
-            _selectedPlatforms.value = settingsRep.platforms.toSet()
-            val gameIds = readCardsFromDataStore(context).first()
-            if(gameIds.isNotEmpty() && settingsRep.genres.isNotEmpty()){
-                fetchGames(context, settingsRep.genres, settingsRep.platforms, gamesWrapper, gameIds)
-            }
-            else if(settingsRep.genres.isNotEmpty()) {
-                fetchGames(context, settingsRep.genres, settingsRep.platforms, gamesWrapper)
+            try {
+                val settingsRep = userRepository.getSettings()
+                _selectedGenres.value = settingsRep.genres.toSet()
+                _selectedPlatforms.value = settingsRep.platforms.toSet()
+                val gameIds = readCardsFromDataStore(context).first()
+                Log.i("game ids from datastore", gameIds.toString())
+                if(gameIds.isNotEmpty() && settingsRep.genres.isNotEmpty()){
+                    fetchGames(context, settingsRep.genres, settingsRep.platforms, gamesWrapper, gameIds)
+                }
+                else if(settingsRep.genres.isNotEmpty()) {
+                    fetchGames(context, settingsRep.genres, settingsRep.platforms, gamesWrapper)
+                }
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error fetching settings", e)
+                // W przypadku błędu można tu ustawić jakieś wartości domyślne lub pusty stan
             }
         }
     }
 
     // ===== LIBRARY OPERATIONS - SAVED GAMES =====
     private fun removeGame(game: Game) {
-        _savedGames.update { currentGames ->
-            currentGames.filter { it.id != game.id }
-        }
-        _images2.update { currentImages ->
-            currentImages.toMutableList().apply {
-                val index = _gameIds.value.indexOf(game.id)
-                if (index >= 0) {
-                    removeAt(index)
-                }
-            }
-        }
-        _gameIds.update { currentIds ->
-            currentIds.filter { it != game.id }
+        _savedGamesWithMedia.update { currentGamesWithMedia ->
+            currentGamesWithMedia.filter { it.id != game.id }
         }
     }
 
     private fun likeGame(id : Int) {
-        _savedGames.update { currentGames ->
-            currentGames.map {
+        _savedGamesWithMedia.update { currentGamesWithMedia ->
+            currentGamesWithMedia.map {
                 if (it.id == id) {
-                    it.copy(liked = !it.liked)
+                    it.copy(game = it.game.copy(liked = !it.game.liked))
                 } else {
                     it
                 }
@@ -335,77 +439,102 @@ class GamesViewModel(): ViewModel() {
 
     fun addGame(context: Context, game: Game, gameRepository: GameRepository, gamesWrapper: GamesWrapper){
         viewModelScope.launch {
-            gameRepository.addGame(game)
-            val images = gamesWrapper.wrapImages(
-                context = context,
-                imageIds = mutableListOf(game.cover)
-            ) ?: mutableListOf("")
-            _images2.update { currentImages ->
-                (currentImages + images[0]).toMutableList()
-            }
-            _savedGames.update { currentGames ->
-                currentGames + game
-            }
-            _gameIds.update { currentIds ->
-                currentIds + game.id
+            try {
+                val gameWithDate = game.copy(dateOfAddition = System.currentTimeMillis())
+                gameRepository.addGame(gameWithDate)
+                val images = gamesWrapper.wrapImages(
+                    context = context,
+                    imageIds = mutableListOf(game.cover)
+                ) ?: mutableListOf("")
+                val video = gamesWrapper.wrapVideos(
+                    videosIds = mutableListOf(game.video)
+                ) ?: mutableListOf("")
+                _savedGamesWithMedia.update { currentGamesWithMedia ->
+                    currentGamesWithMedia + GameWithMedia(
+                        game.id,
+                        gameWithDate,
+                        images.getOrElse(0) { "" },
+                        video.getOrElse(0) { "" }
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error adding game", e)
             }
         }
     }
     // ===== FETCH GAMES FROM API =====
     fun fetchGames(context: Context, genres: List<Int>, platforms: List<Int>, gamesWrapper: GamesWrapper){
+
         viewModelScope.launch {
-            val gamesResult = gamesWrapper.wrapGames(context, genres, platforms) ?: return@launch
+            try {
+                val gamesResult = gamesWrapper.wrapGames(context, genres, platforms) ?: return@launch
+                _games.value += gamesResult
+                val imageIds = gamesResult.map { it.cover }
+                val videoIds = gamesResult.map { it.video }
 
-            _games.value += gamesResult
+                if (imageIds.isEmpty() || videoIds.isEmpty()) {
+                    return@launch
+                }
 
-            val imageIds = gamesResult.map { it.cover }
-            val videoIds = gamesResult.map { it.video }
-
-            if(imageIds.isEmpty() || videoIds.isEmpty()){
-                return@launch
-            }
-
-            val imagesResult = fetchImages(context, imageIds, gamesWrapper)
-            val videosResult = fetchVideos(context, videoIds, gamesWrapper)
-            _images.update { it + imagesResult }
-            _videos.update { it + videosResult }
-            Log.i("GAMES IMAGES VIDEOS", _games.value.size.toString() + " " +
-                    _images.value.size.toString() + " " + _videos.value.size.toString())
-            for (i in gamesResult.indices) {
-                val card = GameCard(
-                    gamesResult[i],
-                    imagesResult[i],
-                    videosResult[i]
+                val imagesResult = fetchImages(context, imageIds, gamesWrapper)
+                val videosResult = fetchVideos(context, videoIds, gamesWrapper)
+                _images.update { it + imagesResult }
+                _videos.update { it + videosResult }
+                Log.i(
+                    "GAMES IMAGES VIDEOS", _games.value.size.toString() + " " +
+                            _images.value.size.toString() + " " + _videos.value.size.toString()
                 )
-                _gameCards.update { it + card }
+                for (i in gamesResult.indices) {
+                    // Sprawdzenie granic tablicy dla bezpieczeństwa
+                    if (i < imagesResult.size && i < videosResult.size) {
+                        val card = GameCard(
+                            gamesResult[i],
+                            imagesResult[i],
+                            videosResult[i]
+                        )
+                        _gameCards.update { it + card }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error fetching games", e)
             }
         }
     }
 
     fun fetchGames(context: Context, genres: List<Int>, platforms: List<Int>,
                    gamesWrapper: GamesWrapper, idsList: List<Int>){
+        Log.i("FETCH GAMES WITH IDS", idsList.toString())
         viewModelScope.launch {
-            val gamesResult = gamesWrapper.wrapGames(context, genres, platforms, idsList) ?: return@launch
+            try {
+                val gamesResult = gamesWrapper.wrapGames(context, genres, platforms, idsList) ?: return@launch
 
-            _games.value += gamesResult
+                _games.value += gamesResult
 
-            val imageIds = gamesResult.map { it.cover }
-            val videoIds = gamesResult.map { it.video }
+                val imageIds = gamesResult.map { it.cover }
+                val videoIds = gamesResult.map { it.video }
 
-            val imagesResult = fetchImages(context, imageIds, gamesWrapper)
-            val videosResult = fetchVideos(context, videoIds, gamesWrapper)
-            _images.update { it + imagesResult }
-            _videos.update { it + videosResult }
-            Log.i("GAMES IMAGES VIDEOS2", _games.value.size.toString() + " " +
-                    _images.value.size.toString() + " " + _videos.value.size.toString())
-            for (i in gamesResult.indices) {
-                val card = GameCard(
-                    gamesResult[i],
-                    imagesResult[i],
-                    videosResult[i]
+                val imagesResult = fetchImages(context, imageIds, gamesWrapper)
+                val videosResult = fetchVideos(context, videoIds, gamesWrapper)
+                _images.update { it + imagesResult }
+                _videos.update { it + videosResult }
+                Log.i(
+                    "GAMES IMAGES VIDEOS2", _games.value.size.toString() + " " +
+                            _images.value.size.toString() + " " + _videos.value.size.toString()
                 )
-                _gameCards.update { it + card }
+                for (i in gamesResult.indices) {
+                    // Sprawdzenie granic tablicy dla bezpieczeństwa
+                    if (i < imagesResult.size && i < videosResult.size) {
+                        val card = GameCard(
+                            gamesResult[i],
+                            imagesResult[i],
+                            videosResult[i]
+                        )
+                        _gameCards.update { it + card }
+                    }
 
+                }
+            } catch (e: Exception) {
+                Log.e("GamesViewModel", "Error fetching games with IDs", e)
             }
         }
     }
@@ -420,25 +549,16 @@ class GamesViewModel(): ViewModel() {
 
     // ===== HELPER METHODS =====
 
-    /**
-     * Pobiera grę po jej Game ID
-     */
     fun getGameById(gameId: Int): Game? {
-        return _savedGames.value.find { it.id == gameId }
+        return _savedGamesWithMedia.value.find { it.id == gameId }?.game
     }
 
-    /**
-     * Usuwa grę po Game ID
-     */
     fun deleteGameById(gameId: Int) {
-        _savedGames.value.find { it.id == gameId }?.let { game ->
-            removeGame(game)
+        _savedGamesWithMedia.value.find { it.id == gameId }?.let {
+            removeGame(it.game)
         }
     }
 
-    /**
-     * Zmienia stan like dla gry po Game ID
-     */
     fun toggleLikeById(gameId: Int) {
         likeGame(gameId)
     }

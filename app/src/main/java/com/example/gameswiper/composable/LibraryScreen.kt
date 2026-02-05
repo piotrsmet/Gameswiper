@@ -1,5 +1,6 @@
 package com.example.gameswiper.composable
 
+import android.app.Activity
 import android.content.Context
 import android.util.Log
 import androidx.activity.compose.BackHandler
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -53,6 +55,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +79,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -83,8 +89,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.request.crossfade
+import coil3.size.Precision
 import com.example.gameswiper.R
 import com.example.gameswiper.model.Game
 import com.example.gameswiper.model.GamesViewModel
@@ -101,12 +112,20 @@ private enum class FullScreenImageState {
     VISIBLE_BACK
 }
 
-@Composable
-fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: GameRepository, gamesWrapper: GamesWrapper, onBackPressed: () -> Unit) {
+private enum class SortOrder {
+    NONE, A_TO_Z, Z_TO_A, NEW_TO_OLD, OLD_TO_NEW
+}
 
-    val imagesList = viewModel.images2.collectAsState()
-    val savedGames = viewModel.savedGames.collectAsState()
-    val videosList = viewModel.videos2.collectAsState()
+
+@Composable
+fun LibraryScreen(context: Context,
+                  viewModel: GamesViewModel,
+                  gameRepository: GameRepository,
+                  gamesWrapper: GamesWrapper,
+                  isActive: Boolean
+) {
+
+    val savedGamesWithMedia by viewModel.savedGamesWithMedia.collectAsState()
 
     var columns by remember { mutableStateOf(3) }
 
@@ -119,25 +138,43 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
     var aspectRatio by remember(selectedImageUrl) { mutableStateOf<Float?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var showLikedOnly by remember { mutableStateOf(false) }
+    var sortOrder by remember { mutableStateOf<SortOrder>(SortOrder.NONE) }
+    var showFilterMenu by remember { mutableStateOf(false) }
+
     var likeAnimationScale by remember { mutableStateOf(1f) }
     val focusManager = LocalFocusManager.current
 
-
-    val gamesWithMedia = remember(savedGames.value, imagesList.value, videosList.value) {
-        savedGames.value.mapIndexed { index, game ->
-            val image = imagesList.value.getOrNull(index) ?: ""
-            val video = videosList.value.getOrNull(index) ?: ""
-            Triple(game, image, video)
-        }
+    val filteredGames = remember(searchQuery, savedGamesWithMedia, showLikedOnly, sortOrder) {
+        savedGamesWithMedia
+            .filter { item ->
+                val game = item.game
+                val matchesSearch = if (searchQuery.isBlank()) true else game.name.contains(searchQuery, ignoreCase = true)
+                val matchesLike = if (showLikedOnly) game.liked else true
+                matchesSearch && matchesLike
+            }
+            .let { list ->
+                when (sortOrder) {
+                    SortOrder.A_TO_Z -> list.sortedBy { it.game.name.lowercase() }
+                    SortOrder.Z_TO_A -> list.sortedByDescending { it.game.name.lowercase() }
+                    SortOrder.NEW_TO_OLD -> list.sortedByDescending { it.game.dateOfAddition }
+                    SortOrder.OLD_TO_NEW -> list.sortedBy { it.game.dateOfAddition }
+                    SortOrder.NONE -> list
+                }
+            }
     }
 
-    val filteredGames = remember(searchQuery, gamesWithMedia, showLikedOnly) {
-        gamesWithMedia.filter { (game, _, _) ->
-            val matchesSearch = if (searchQuery.isBlank()) true else game.name.contains(searchQuery, ignoreCase = true)
-            val matchesLike = if (showLikedOnly) game.liked else true
-            matchesSearch && matchesLike
-        }
+
+    fun buildImageRequest(url: String?): ImageRequest {
+        return ImageRequest.Builder(context)
+            .data(url)
+            .crossfade(true)
+            .crossfade(500)
+            .allowHardware(false)
+            .build()
     }
+
+    val imageLoader = remember { ImageLoader(context) }
+
 
     LaunchedEffect(selectedImageUrl) {
         if (selectedImageUrl == null) {
@@ -157,13 +194,13 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
             selectedImageUrl = null
             selectedGameId = null
             selectedVideoId = null
-        } else {
-            onBackPressed()
         }
+        else
+            (context as? Activity)?.finish()
     }
 
     Scaffold(
-        containerColor = Color(0xFF0B0B0B)
+        containerColor = Color.Black,
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding())) {
             Column() {
@@ -199,36 +236,116 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                         singleLine = true
                     )
 
-                    IconButton(onClick = { showLikedOnly = !showLikedOnly }) {
-                        Icon(
-                            painter = painterResource(R.drawable.like),
-                            contentDescription = "Filter Liked",
-                            tint = if (showLikedOnly) Color.Red else Color.Gray
-                        )
-                    }
+                    Box {
+                        IconButton(onClick = { showFilterMenu = !showFilterMenu }) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Filters",
+                                tint = if (showFilterMenu || showLikedOnly || sortOrder != SortOrder.NONE) DETAILS_COLOR else Color.Gray
+                            )
+                        }
 
-                    IconButton(onClick = { columns = 1 }) {
-                        Icon(
-                            painter = painterResource(R.drawable.column_one_svgrepo_com),
-                            contentDescription = "1 Column",
-                            tint = if (columns == 1) DETAILS_COLOR else Color.Gray
-                        )
-                    }
-                    IconButton(onClick = { columns = 2 }) {
-                        Icon(
-                            painter = painterResource(R.drawable.columns_02_svgrepo_com),
-                            contentDescription = "2 Columns",
-                            tint = if (columns == 2) DETAILS_COLOR else Color.Gray
-                        )
-                    }
-                    IconButton(onClick = { columns = 3 }) {
-                        Icon(
-                            painter = painterResource(R.drawable.columns_03_svgrepo_com),
-                            contentDescription = "3 Columns",
-                            tint = if (columns == 3) DETAILS_COLOR else Color.Gray
-                        )
+                        DropdownMenu(
+                            expanded = showFilterMenu,
+                            onDismissRequest = { showFilterMenu = false },
+                            modifier = Modifier.background(Color(0xFF2A2A2A)).width(200.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = when (sortOrder) {
+                                                SortOrder.NONE -> "Bez sortowania"
+                                                SortOrder.A_TO_Z -> "Sortuj A-Z"
+                                                SortOrder.Z_TO_A -> "Sortuj Z-A"
+                                                SortOrder.NEW_TO_OLD -> "Od najnowszych"
+                                                SortOrder.OLD_TO_NEW -> "Od najstarszych"
+                                            },
+                                            color = Color.White
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    sortOrder = when (sortOrder) {
+                                        SortOrder.NONE -> SortOrder.A_TO_Z
+                                        SortOrder.A_TO_Z -> SortOrder.Z_TO_A
+                                        SortOrder.Z_TO_A -> SortOrder.NEW_TO_OLD
+                                        SortOrder.NEW_TO_OLD -> SortOrder.OLD_TO_NEW
+                                        SortOrder.OLD_TO_NEW -> SortOrder.NONE
+                                    }
+                                },
+                                leadingIcon = {
+                                    Text(
+                                        text = when (sortOrder) {
+                                            SortOrder.NONE -> " "
+                                            SortOrder.A_TO_Z -> "A↓"
+                                            SortOrder.Z_TO_A -> "Z↓"
+                                            SortOrder.NEW_TO_OLD -> "N↓"
+                                            SortOrder.OLD_TO_NEW -> "O↓"
+                                        },
+                                        color = if (sortOrder != SortOrder.NONE) DETAILS_COLOR else Color.Gray,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Tylko ulubione", color = Color.White) },
+                                onClick = { showLikedOnly = !showLikedOnly },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Filter Liked",
+                                        tint = if (showLikedOnly) Color.Yellow else Color.Gray
+                                    )
+                                }
+                            )
+
+                            HorizontalDivider(color = Color.Gray.copy(alpha = 0.3f))
+
+                            DropdownMenuItem(
+                                text = { Text("1 kolumna", color = Color.White) },
+                                onClick = { columns = 1 },
+                                leadingIcon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.column_one_svgrepo_com),
+                                        contentDescription = "1 Column",
+                                        tint = if (columns == 1) DETAILS_COLOR else Color.Gray,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("2 kolumny", color = Color.White) },
+                                onClick = { columns = 2 },
+                                leadingIcon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.columns_02_svgrepo_com),
+                                        contentDescription = "2 Columns",
+                                        tint = if (columns == 2) DETAILS_COLOR else Color.Gray,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("3 kolumny", color = Color.White) },
+                                onClick = { columns = 3 },
+                                leadingIcon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.columns_03_svgrepo_com),
+                                        contentDescription = "3 Columns",
+                                        tint = if (columns == 3) DETAILS_COLOR else Color.Gray,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
+
+                        }
                     }
                 }
+
 
                 Row(Modifier.weight(12f)) {
                     Box(Modifier
@@ -244,19 +361,19 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                                 .fillMaxSize()
                         ) {
                             items(filteredGames.size) { index ->
-                                // ZMIANA: Rozpakowanie Triple (game, image, video)
-                                val (game, imageUrl, videoId) = filteredGames[index]
+                                val item = filteredGames[index]
                                 ImageCard(
-                                    imageUrl = imageUrl,
+                                    imageUrl = item.cover,
                                     columns = columns,
+                                    imageLoader = imageLoader,
                                     onClick = {
                                         focusManager.clearFocus()
-                                        selectedImageUrl = imageUrl
-                                        selectedGameId = game.id
-                                        selectedVideoId = videoId // Zapisujemy ID wideo
+                                        selectedImageUrl = item.cover
+                                        selectedGameId = item.game.id
+                                        selectedVideoId = item.video
                                     },
                                     modifier = Modifier.animateItem(),
-                                    title = game.name
+                                    title = item.game.name
                                 )
                             }
                         }
@@ -398,9 +515,9 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                                         )
 
                                         Icon(
-                                            painter = painterResource(R.drawable.like),
+                                            imageVector = Icons.Default.Star,
                                             contentDescription = "Like",
-                                            tint = if (isLiked) Color.Red else Color.White,
+                                            tint = if (isLiked) Color.Yellow else Color.White,
                                             modifier = Modifier
                                                 .size(40.dp)
                                                 .graphicsLayer {
@@ -429,7 +546,8 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
 
                                 if (rotation <= 90f) {
                                     AsyncImage(
-                                        model = selectedImageUrl,
+                                        model = buildImageRequest(selectedImageUrl),
+                                        imageLoader = imageLoader,
                                         contentDescription = "Full screen image",
                                         onState = { state ->
                                             if (state is AsyncImagePainter.State.Success) {
@@ -442,6 +560,7 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(20.dp))
+                                            .border(5.dp, Color.White.copy(alpha=0.2f), RoundedCornerShape(20.dp))
                                     )
                                 } else {
                                     val currentGame = selectedGameId?.let { viewModel.getGameById(it) }
@@ -457,7 +576,6 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                                             .padding(20.dp)
                                     ) {
                                         if (currentGame != null) {
-                                            //add scrolling in card
                                             Column(
                                                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                                                 verticalArrangement = Arrangement.SpaceBetween
@@ -496,13 +614,23 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
                                                     )
                                                     Spacer(Modifier.height(8.dp))
                                                     if (selectedVideoId != null) {
-                                                        YouTubePlayerScreen(
-                                                            videoId = selectedVideoId!!,
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .height(200.dp)
-                                                                .clip(RoundedCornerShape(8.dp))
-                                                        )
+                                                        if(selectedVideoId == "ihyrf2jfpIk"){
+                                                            Text(
+                                                                text = "No trailer available",
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                color = Color.White,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                        else {
+                                                            YouTubePlayerScreen(
+                                                                videoId = selectedVideoId!!,
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .height(200.dp)
+                                                                    .clip(RoundedCornerShape(8.dp))
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
@@ -521,6 +649,7 @@ fun LibraryScreen(context: Context, viewModel: GamesViewModel, gameRepository: G
 @Composable
 fun ImageCard(imageUrl: String,
               columns: Int,
+              imageLoader: ImageLoader,
               onClick: () -> Unit,
               modifier: Modifier = Modifier,
               title: String) {
@@ -541,6 +670,23 @@ fun ImageCard(imageUrl: String,
         2 -> 12.dp
         else -> 8.dp
     }
+    val requestSize = when (columns) {
+        1 -> 800
+        2 -> 400
+        else -> 250
+    }
+
+    val context = LocalContext.current
+    val imageRequest = remember(imageUrl, columns) {
+        ImageRequest.Builder(context)
+            .data(imageUrl)
+            .crossfade(true)
+            .crossfade(300)
+            .size(requestSize)
+            .precision(Precision.EXACT)
+            .allowHardware(false)
+            .build()
+    }
     Column(
         modifier = modifier
             .padding(8.dp)
@@ -558,7 +704,7 @@ fun ImageCard(imageUrl: String,
                 .height(height)
         ) {
             AsyncImage(
-                model = imageUrl,
+                model = imageRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

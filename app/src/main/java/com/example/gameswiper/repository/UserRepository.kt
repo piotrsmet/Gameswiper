@@ -5,6 +5,7 @@ import com.example.gameswiper.model.Friend
 import com.example.gameswiper.model.Settings
 import com.example.gameswiper.model.UserDisplay
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
@@ -24,7 +25,8 @@ class UserRepository {
                 userDisplay.profilePicture,
                 userDisplay.swiped,
                 userDisplay.liked,
-                userDisplay.disliked
+                userDisplay.disliked,
+                userDisplay.favouriteGenre
             )
             firestore
                 .collection("users")
@@ -108,9 +110,9 @@ class UserRepository {
         return prefs
     }
 
-    suspend fun getFriends(): List<UserDisplay>{
+    suspend fun getFriends(): List<UserDisplay> {
         val friends = mutableListOf<UserDisplay>()
-        if(user != null){
+        if (user != null) {
             val snapshot = firestore
                 .collection("users")
                 .document(user.uid)
@@ -118,20 +120,43 @@ class UserRepository {
                 .get()
                 .await()
 
-            if(!snapshot.isEmpty){
+            if (!snapshot.isEmpty) {
                 val snapshot2 = firestore.collectionGroup("userDisplay")
                     .whereIn("name", snapshot.documents.map { it.getString("name") })
                     .get()
                     .await()
-                friends.addAll(snapshot2.toObjects(UserDisplay::class.java))
+
+                val friendsList = snapshot2.toObjects(UserDisplay::class.java)
+                Log.d("UserRepository", "Friends loaded: $friendsList")
+                friends.addAll(friendsList)
             }
         }
         return friends
     }
 
+    suspend fun deleteFriend(friendName: String) {
+        if (user == null) return
+        try {
+            val snapshot = firestore
+                .collection("users")
+                .document(user.uid)
+                .collection("friends")
+                .whereEqualTo("name", friendName)
+                .get()
+                .await()
+
+            for (doc in snapshot.documents) {
+                doc.reference.delete().await()
+            }
+            Log.i("UserRepository", "Friend deleted: $friendName")
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error deleting friend: ${e.message}")
+        }
+    }
+
+
     suspend fun addFriend(friendName: String): UserDisplay? {
         if (user == null) return null
-
         return try {
             val snapshot = firestore.collectionGroup("userDisplay")
                 .whereEqualTo("name", friendName)
@@ -164,6 +189,13 @@ class UserRepository {
         }
     }
 
+    suspend fun updateAvatar(avatarIndex: Int) {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(userId)
+            .update("profilePicture", avatarIndex)
+    }
 
 
     suspend fun getSettings(): Settings{

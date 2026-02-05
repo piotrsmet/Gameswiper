@@ -10,9 +10,10 @@ data class Game(
     val themes: MutableList<Int> = mutableListOf(),
     val summary: String = "",
     val similarGames: MutableList<Int> = mutableListOf(),
-    val liked: Boolean = false
+    val liked: Boolean = false,
+    var dateOfAddition : Long = 0
 ){
-    constructor() : this(0, 0, 0, mutableListOf(), "", mutableListOf(), mutableListOf(), "", mutableListOf(), false)
+    constructor() : this(0, 0, 0, mutableListOf(), "", mutableListOf(), mutableListOf(), "", mutableListOf(), false, 0)
 }
 
 

@@ -26,7 +26,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gameswiper.composable.ImageBackground
 import com.example.gameswiper.composable.MainScreen
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.network.GamesWrapper

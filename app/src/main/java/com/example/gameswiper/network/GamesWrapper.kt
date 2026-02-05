@@ -214,7 +214,8 @@ class GamesWrapper{
                     .fields("id, cover, videos, genres, platforms, name, themes, summary, similar_games")
                     .limit(200)
                     .where("id = $idString & genres = $genresString & platforms = $platformsString " +
-                            "& themes != null & summary != null & cover != null  & themes != 42")
+                            "& themes != null & summary != null & cover != null & similar_games != null " +
+                            "& themes != 42")
                 json = IGDBWrapper.jsonGames(apiCalypse)
                 var gamesList = parseJsonToGamesList(json).shuffled()
 

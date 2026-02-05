@@ -1,11 +1,16 @@
 package com.example.gameswiper.composable
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,6 +29,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -69,10 +75,12 @@ import kotlin.math.roundToInt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -80,6 +88,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
@@ -94,6 +103,7 @@ import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import coil3.request.crossfade
 import com.example.gameswiper.model.GamesViewModel
 import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.repository.UserRepository
@@ -115,7 +125,9 @@ fun SwipingScreen(
     context: Context,
     wrapper: GamesWrapper,
     viewModel: GamesViewModel,
-    gamesRepository: GameRepository
+    gamesRepository: GameRepository,
+    isActive: Boolean,
+    userRepository: UserRepository
 ) {
     val offsetX = remember { Animatable(0f) }
     val nextCardScale = remember { Animatable(0.95f) }
@@ -129,20 +141,28 @@ fun SwipingScreen(
     val currentImage = currentCard?.imageUrl
     val nextImage = nextCard?.imageUrl
     val currentVideo = currentCard?.videoId
+    var border by remember { mutableStateOf(5.dp) }
+    var fetchingGames by remember { mutableStateOf(true) }
 
-
+    fun buildImageRequest(url: String?): ImageRequest {
+        return ImageRequest.Builder(context)
+            .data(url)
+            .crossfade(true)
+            .crossfade(300)
+            .allowHardware(false)
+            .build()
+    }
     val imageLoader = remember { ImageLoader(context) }
+    val painter = rememberAsyncImagePainter(
+        model = buildImageRequest(currentImage),
+        imageLoader = imageLoader
+    )
+
     LaunchedEffect(gameCards.size) {
-        val preloadCount = 10
+        val preloadCount = 5
         val upcoming = gameCards.map { it.imageUrl }.take(preloadCount)
         upcoming.forEach { imageUrl ->
-            val request = ImageRequest.Builder(context)
-                .data(imageUrl)
-                .memoryCacheKey(imageUrl)
-                .diskCacheKey(imageUrl)
-                .allowHardware(false)
-                .build()
-            imageLoader.enqueue(request)
+            imageLoader.enqueue(buildImageRequest(imageUrl))
         }
     }
 
@@ -152,19 +172,20 @@ fun SwipingScreen(
     }
 
     LaunchedEffect(gameCards.size){
-        if(gameCards.size < 30 && viewModel.selectedPlatforms.value.isNotEmpty()){
+        if(gameCards.size < 20 && viewModel.selectedPlatforms.value.isNotEmpty() && fetchingGames){
+            fetchingGames = false
             val preferredIds = viewModel.getPreferredGameIds()
-
-            Log.i("fetched again", gameCards.size.toString())
-            if(preferredIds.size > 500){
-                viewModel.fetchGames(context,
+            Log.i("preferred ids", preferredIds.toString())
+            Log.i("fetched again", gameCards.toString())
+            if (preferredIds.size > 500) {
+                viewModel.fetchGames(
+                    context,
                     viewModel.selectedGenres.value.toList(),
                     viewModel.selectedPlatforms.value.toList(),
                     wrapper,
                     preferredIds
                 )
-            }
-            else {
+            } else {
                 viewModel.fetchGames(
                     context,
                     viewModel.selectedGenres.value.toList(),
@@ -172,6 +193,8 @@ fun SwipingScreen(
                     wrapper
                 )
             }
+
+            fetchingGames = true
         }
     }
 
@@ -194,7 +217,7 @@ fun SwipingScreen(
     val dislikeScale by animateFloatAsState(
         targetValue = if (dislikedAnim) 1.15f else 1f,
         animationSpec = tween(150),
-        finishedListener = { dislikedAnim = false }
+        finishedListener = { dislikedAnim = false }, label = ""
     )
 
     var likedAnim by remember { mutableStateOf(false) }
@@ -205,15 +228,13 @@ fun SwipingScreen(
     )
 
 
-    val painter = rememberAsyncImagePainter(
-        model = currentImage,
-        imageLoader = imageLoader
-    )
 
-    BackHandler {
-        if(expanded){
+
+    SystemBackHandler(enabled =isActive) {
+        if(expanded)
             expanded = false
-        }
+        else
+            (context as? Activity)?.finish()
     }
 
     Box(
@@ -247,7 +268,7 @@ fun SwipingScreen(
                         offsetX.snapTo(0f)
                         nextCardScale.snapTo(0.90f)
 
-                        viewModel.swipedLeft(currentGame.similarGames)
+                        viewModel.swipedLeft(currentGame.similarGames, userRepository)
                         viewModel.removeCard()
                         swipeButtonEnabled = true
                     }
@@ -270,7 +291,7 @@ fun SwipingScreen(
                         offsetX.animateTo(1500f, tween(300))
 
                         viewModel.addGame(context, currentGame, gamesRepository, wrapper)
-                        viewModel.swipedRight(currentGame.similarGames)
+                        viewModel.swipedRight(currentGame.similarGames, userRepository)
 
                         launch {
                             nextCardScale.animateTo(1f, tween(300))
@@ -306,7 +327,8 @@ fun SwipingScreen(
                     rotationZ = 10f
                 }
                 .blur(1.dp, BlurredEdgeTreatment.Unbounded)
-                .background(shape = RoundedCornerShape(25.dp), color = Color.Transparent),
+                .background(shape = RoundedCornerShape(25.dp), color = Color.Transparent)
+                .border(5.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(25.dp)),
             colors = CardDefaults.cardColors(Color(0xFF2CD3E1).copy(alpha = 0.5f)),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             shape = RoundedCornerShape(25.dp)
@@ -321,7 +343,8 @@ fun SwipingScreen(
                     rotationZ = -5f
                 }
                 .blur(0.5.dp, BlurredEdgeTreatment.Unbounded)
-                .background(shape = RoundedCornerShape(25.dp), color = Color.Transparent),
+                .background(shape = RoundedCornerShape(25.dp), color = Color.Transparent)
+                .border(5.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(25.dp)),
             colors = CardDefaults.cardColors(Color(0xFF00DFA2).copy(alpha = 0.5f)),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             shape = RoundedCornerShape(25.dp)
@@ -334,7 +357,8 @@ fun SwipingScreen(
                     .graphicsLayer {
                         scaleX = nextCardScale.value
                         scaleY = nextCardScale.value
-                    },
+                    }
+                    .border(5.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(25.dp)),
                 colors = CardDefaults.cardColors(Color.Transparent),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 shape = RoundedCornerShape(25.dp)
@@ -373,7 +397,7 @@ fun SwipingScreen(
                                     contentAlignment = Alignment.BottomStart
                                 ) {
                                     Text(
-                                        text = nextCard.game.name ?: "",
+                                        text = nextCard.game.name,
                                         style = MaterialTheme.typography.headlineSmall,
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold
@@ -399,10 +423,11 @@ fun SwipingScreen(
                     scaleX = scale
                     scaleY = scale
                 }
+                .border(border, Color.White.copy(alpha = 0.1f), RoundedCornerShape(25.dp))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { expanded = !expanded }
+                    onClick = { expanded = !expanded; border = if(!expanded) 5.dp else 0.dp }
                 )
                 .pointerInput(expanded, swipeButtonEnabled) {
                     if(!expanded && currentGame != null && swipeButtonEnabled){
@@ -429,10 +454,10 @@ fun SwipingScreen(
                                         offsetX.animateTo(targetValue, tween(300))
                                         if (offsetX.value > 0f) {
                                             viewModel.addGame(context, currentGame, gamesRepository, wrapper)
-                                            viewModel.swipedRight(currentGame.similarGames)
+                                            viewModel.swipedRight(currentGame.similarGames, userRepository)
                                         }
                                         else {
-                                            viewModel.swipedLeft(currentGame.similarGames)
+                                            viewModel.swipedLeft(currentGame.similarGames, userRepository)
                                         }
                                         launch {
                                             nextCardScale.animateTo(1f, tween(300))
@@ -595,7 +620,19 @@ fun SwipingScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(Modifier.height(8.dp))
-                                YouTubePlayerScreen(currentVideo)
+                                if(currentVideo == "ihyrf2jfpIk"){
+                                    Text(
+                                        text = "No trailer available",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                } else {
+                                    YouTubePlayerScreen(
+                                        currentVideo,
+                                        Modifier.clip(RoundedCornerShape(15.dp))
+                                    )
+                                }
                             }
                         }
                     }
@@ -642,7 +679,44 @@ fun ShimmerCard(
     )
 }
 
+@Composable
+fun SystemBackHandler(
+    enabled: Boolean = true,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val currentOnBack by rememberUpdatedState(onBack)
 
+    DisposableEffect(context, enabled) {
+        val activity = context as? ComponentActivity
+            ?: return@DisposableEffect onDispose {}
+        val callback = object : OnBackPressedCallback(enabled) {
+            override fun handleOnBackPressed() {
+                currentOnBack()
+            }
+        }
+        activity.onBackPressedDispatcher.addCallback(callback)
+        var invokedCallback: OnBackInvokedCallback? = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (enabled) {
+                invokedCallback = OnBackInvokedCallback { currentOnBack() }
+                activity.onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                    invokedCallback
+                )
+            }
+        }
+
+        onDispose {
+            callback.remove()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                invokedCallback?.let {
+                    activity.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it)
+                }
+            }
+        }
+    }
+}
 
 
 @Composable
@@ -682,110 +756,7 @@ fun YouTubePlayerScreen(
     }
 }
 
-@Composable
-fun ImageBackground(modifier: Modifier, context: Context, logOut: () -> Unit) {
-    val viewModel: GamesViewModel = viewModel()
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-
-        Image(
-            painter = painterResource(id = R.drawable.background2),
-            contentDescription = null,
-            contentScale = ContentScale.FillHeight,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        var current by remember { mutableIntStateOf(1) }
-        val wrapper = GamesWrapper()
-        wrapper.getStaticToken()
-        val gamesRepository = GameRepository()
-        var currentScreen by remember { mutableStateOf("home_screen") }
-        val userRepository = UserRepository()
-
-        LaunchedEffect (Unit){viewModel.fetchSettings(userRepository, context, wrapper)}
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            NotificationPermissionHandler()
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 10.dp, top = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Button(onClick = { current = -1; currentScreen = "settings_screen"},
-                    modifier = Modifier.size(50.dp).clip(CircleShape),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4100B1))
-                ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", modifier = Modifier.size(30.dp), tint = Color.White)
-                }
-                Button(onClick = { current = 1; currentScreen = "library_screen"},
-                    modifier = Modifier.size(50.dp).clip(CircleShape),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4100B1))
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Library", modifier = Modifier.size(30.dp), tint = Color.White)
-                }
-            }
-        }
-        AnimatedVisibility(
-            visible = currentScreen == "home_screen",
-            enter = slideInHorizontally(
-                initialOffsetX = { -it * current },
-                animationSpec = tween(500)
-            ),
-            exit = slideOutHorizontally(
-                targetOffsetX = { it * current },
-                animationSpec = tween(500)
-            )
-        ) {
-            SwipingScreen(modifier, context, wrapper, viewModel, gamesRepository)
-        }
-
-        AnimatedVisibility(
-            visible = currentScreen == "settings_screen",
-            enter = slideInHorizontally(
-                initialOffsetX = { -it },
-                animationSpec = tween(500)
-            ),
-            exit = slideOutHorizontally(
-                targetOffsetX = { it },
-                animationSpec = tween(500)
-            )
-        ) {
-            SettingsScreen(onBackPressed = { currentScreen = "home_screen"}, context, logOut, wrapper)
-        }
-
-
-        AnimatedVisibility(
-            visible = currentScreen == "library_screen",
-            enter = slideInHorizontally(
-                initialOffsetX = { it },
-                animationSpec = tween(500)
-            ),
-            exit = slideOutHorizontally(
-                targetOffsetX = { -it },
-                animationSpec = tween(500)
-            )
-        ) {
-            LibraryScreen(
-                context = context,
-                viewModel = viewModel,
-                gameRepository = gamesRepository,
-                gamesWrapper = wrapper,
-                onBackPressed = { currentScreen = "home_screen" }
-            )
-        }
-
-    }
-}
 
 @Composable
 fun NotificationPermissionHandler() {

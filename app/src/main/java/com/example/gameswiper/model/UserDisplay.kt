@@ -6,7 +6,8 @@ data class UserDisplay (
     val profilePicture: String = "1",
     val swiped: Int = 0,
     val liked: Int = 0,
-    val disliked: Int = 0
+    val disliked: Int = 0,
+    val favouriteGenre: Int = 0,
 ){
-    constructor() : this("0", "Unknown", "1", 0, 0, 0)
+    constructor() : this("0", "Unknown", "1", 0, 0, 0, 0)
 }
