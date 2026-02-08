@@ -56,7 +56,7 @@ class GameRepository{
                             }
                     }
                 }
-                .addOnFailureListener { Log.i("Porażka", "faioldsa") }
+
         }
     }
 
@@ -72,12 +72,9 @@ class GameRepository{
                     for(i in document){
                         val isLiked = i.getBoolean("liked") ?: false
                         i.reference.update("liked", !isLiked)
-                            .addOnSuccessListener {
-                                Log.i("Sukces", "sukces")
-                            }
                     }
                 }
-                .addOnFailureListener { Log.i("Porażka", "faioldsa") }
+
         }
     }
 }

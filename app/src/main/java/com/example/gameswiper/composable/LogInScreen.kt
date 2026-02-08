@@ -39,7 +39,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gameswiper.model.GamesViewModel
+import com.example.gameswiper.model.SettingsViewModel
+import com.example.gameswiper.model.UserViewModel
 import com.example.gameswiper.model.UserDisplay
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.GENRES
@@ -176,7 +177,7 @@ fun RegisterScreen(
     onRegister: (String, String, String) -> Unit,
     onNavigateToLogin: () -> Unit,
     modifier: Modifier,
-    viewModel: GamesViewModel
+    userViewModel: UserViewModel
 ) {
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -253,8 +254,9 @@ fun RegisterScreen(
             Button(
                 onClick = {
                     if (password != confirmPassword) return@Button
-                    viewModel.updateUserDisplay(
-                        UserDisplay(name = username)
+                    userViewModel.updateUserDisplay(
+                        UserDisplay(name = username),
+                        null
                     )
                     onRegister(username, email, password)
                 },
@@ -291,7 +293,7 @@ fun AvatarSelection(
     modifier: Modifier = Modifier,
     context: Context,
     onAvatarSelected: () -> Unit,
-    viewModel: GamesViewModel
+    userViewModel: UserViewModel
 ) {
     val icons = AVATARS
     var selected by remember { mutableIntStateOf(0) }
@@ -362,11 +364,12 @@ fun AvatarSelection(
         Button(
             onClick = {
                 prefs.edit().putInt("AVATAR", selected).apply()
-                viewModel.updateUserDisplay(
+                userViewModel.updateUserDisplay(
                     UserDisplay(
-                        name = viewModel.userDisplay.value.name,
+                        name = userViewModel.userDisplay.value.name,
                         profilePicture = selected.toString()
-                    )
+                    ),
+                    null
                 )
                 onAvatarSelected()
             },
@@ -392,7 +395,7 @@ fun AuthScreen(
     onLoginSuccess: () -> Unit,
     context: Context,
     onRegisterSuccess: () -> Unit,
-    viewModel: GamesViewModel
+    userViewModel: UserViewModel
 ) {
     var currentScreen by remember { mutableStateOf("login") }
     val auth = FirebaseAuth.getInstance()
@@ -420,17 +423,17 @@ fun AuthScreen(
             },
             onNavigateToLogin = { currentScreen = "login" },
             modifier,
-            viewModel
+            userViewModel
         )
     }
 }
 
 @Composable
-fun ChoosingPreferences(onSettingsSet: () -> Unit, context: Context, viewModel: GamesViewModel) {
+fun ChoosingPreferences(onSettingsSet: () -> Unit, context: Context, settingsViewModel: SettingsViewModel, userViewModel: UserViewModel) {
     val genres = GENRES
     val platforms = PLATFORMS
-    val modelGenres by viewModel.selectedGenres.collectAsState()
-    val modelPlatforms by viewModel.selectedPlatforms.collectAsState()
+    val modelGenres by settingsViewModel.selectedGenres.collectAsState()
+    val modelPlatforms by settingsViewModel.selectedPlatforms.collectAsState()
     val userRepository = UserRepository()
     val prefs = context.getSharedPreferences("my_prefs", Context.MODE_PRIVATE)
 
@@ -500,8 +503,8 @@ fun ChoosingPreferences(onSettingsSet: () -> Unit, context: Context, viewModel: 
                                     indication = null,
                                     onClick = {
                                         checkedGenres[genre.name] = !isChecked
-                                        if (!isChecked) viewModel.addGenre(genre.id)
-                                        else viewModel.removeGenre(genre.id)
+                                        if (!isChecked) settingsViewModel.addGenre(genre.id)
+                                        else settingsViewModel.removeGenre(genre.id)
                                     }
                                 ),
                             shape = RoundedCornerShape(12.dp),
@@ -579,8 +582,8 @@ fun ChoosingPreferences(onSettingsSet: () -> Unit, context: Context, viewModel: 
                                     indication = null,
                                     onClick = {
                                         checkedPlatforms[platform.name] = !isChecked
-                                        if (!isChecked) viewModel.addPlatform(platform.id)
-                                        else viewModel.removePlatform(platform.id)
+                                        if (!isChecked) settingsViewModel.addPlatform(platform.id)
+                                        else settingsViewModel.removePlatform(platform.id)
                                     }
                                 ),
                             shape = RoundedCornerShape(12.dp),
@@ -622,7 +625,7 @@ fun ChoosingPreferences(onSettingsSet: () -> Unit, context: Context, viewModel: 
             Button(
                 onClick = {
                     userRepository.setSettings(modelGenres.toList(), modelPlatforms.toList())
-                    userRepository.setUserDisplay(viewModel.userDisplay.value)
+                    userRepository.setUserDisplay(userViewModel.userDisplay.value)
                     prefs.edit().putString("SETTINGS", "done").apply()
                     onSettingsSet()
                 },
@@ -653,7 +656,8 @@ fun ImageBackgroundAuth(modifier: Modifier, onLoginSuccess: () -> Unit, context:
     val current by remember { mutableIntStateOf(1) }
     val prefs = context.getSharedPreferences("my_prefs", Context.MODE_PRIVATE)
     val creatingAccountState = prefs.getString("SETTINGS", null)
-    val viewModel: GamesViewModel = viewModel()
+    val settingsViewModel: SettingsViewModel = viewModel()
+    val userViewModel: UserViewModel = viewModel()
 
     when (creatingAccountState) {
         "choosing_avatar" -> currentScreen = "avatar_selection"
@@ -673,7 +677,7 @@ fun ImageBackgroundAuth(modifier: Modifier, onLoginSuccess: () -> Unit, context:
                 onLoginSuccess,
                 context,
                 onRegisterSuccess = { currentScreen = "avatar_selection" },
-                viewModel = viewModel
+                userViewModel = userViewModel
             )
         }
 
@@ -695,7 +699,7 @@ fun ImageBackgroundAuth(modifier: Modifier, onLoginSuccess: () -> Unit, context:
                     currentScreen = "first_settings"
                     prefs.edit().putString("SETTINGS", "choosing_preferences").apply()
                 },
-                viewModel = viewModel
+                userViewModel = userViewModel
             )
         }
 
@@ -710,7 +714,7 @@ fun ImageBackgroundAuth(modifier: Modifier, onLoginSuccess: () -> Unit, context:
                 animationSpec = tween(500)
             )
         ) {
-            ChoosingPreferences(onLoginSuccess, context, viewModel)
+            ChoosingPreferences(onLoginSuccess, context, settingsViewModel, userViewModel)
         }
     }
 }

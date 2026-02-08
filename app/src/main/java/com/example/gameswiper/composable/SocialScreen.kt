@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gameswiper.R
-import com.example.gameswiper.model.GamesViewModel
+import com.example.gameswiper.model.UserViewModel
 import com.example.gameswiper.model.UserDisplay
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.AVATARS
@@ -57,14 +57,14 @@ import com.example.gameswiper.utils.GENRES
 
 @Composable
 fun SocialScreen(
-    viewModel: GamesViewModel,
+    userViewModel: UserViewModel,
     userRepository: UserRepository,
     isActive: Boolean
 ) {
     val context = LocalContext.current
     var addFriendNickname by remember { mutableStateOf("") }
     var addFriendButtonPressed by remember { mutableStateOf(false) }
-    val friendsList by viewModel.friends.collectAsState()
+    val friendsList by userViewModel.friends.collectAsState()
     var addFriendResponseCode by remember { mutableStateOf(4) }
     var selectedFriend by remember { mutableStateOf<UserDisplay?>(null) }
 
@@ -192,7 +192,7 @@ fun SocialScreen(
                         ) {
                             Button(
                                 onClick = {
-                                    viewModel.removeFriend(userRepository, friend.name)
+                                    userViewModel.removeFriend(userRepository, friend.name)
                                     selectedFriend = null
                                 },
                                 modifier = Modifier.weight(1f),
@@ -286,7 +286,7 @@ fun SocialScreen(
 
                         Button(
                             onClick = {
-                                viewModel.addFriend(userRepository, addFriendNickname) { i ->
+                                userViewModel.addFriend(userRepository, addFriendNickname) { i ->
                                     addFriendResponseCode = i
                                 }
                             },

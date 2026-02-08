@@ -2,7 +2,6 @@ package com.example.gameswiper.composable
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -98,7 +97,7 @@ import coil3.request.crossfade
 import coil3.size.Precision
 import com.example.gameswiper.R
 import com.example.gameswiper.model.Game
-import com.example.gameswiper.model.GamesViewModel
+import com.example.gameswiper.model.LibraryViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.utils.BUTTON_COLOR
@@ -119,13 +118,13 @@ private enum class SortOrder {
 
 @Composable
 fun LibraryScreen(context: Context,
-                  viewModel: GamesViewModel,
+                  libraryViewModel: LibraryViewModel,
                   gameRepository: GameRepository,
                   gamesWrapper: GamesWrapper,
                   isActive: Boolean
 ) {
 
-    val savedGamesWithMedia by viewModel.savedGamesWithMedia.collectAsState()
+    val savedGamesWithMedia by libraryViewModel.savedGamesWithMedia.collectAsState()
 
     var columns by remember { mutableStateOf(3) }
 
@@ -464,7 +463,7 @@ fun LibraryScreen(context: Context,
                                     IconButton(
                                         onClick = {
                                             selectedGameId?.let { gameId ->
-                                                viewModel.deleteGameById(gameId)
+                                                libraryViewModel.deleteGameById(gameId)
                                                 gameRepository.deleteGame(gameId) {}
                                                 selectedImageUrl = null
                                                 selectedGameId = null
@@ -488,7 +487,7 @@ fun LibraryScreen(context: Context,
                                     IconButton(
                                         onClick = {
                                             selectedGameId?.let { gameId ->
-                                                viewModel.toggleLikeById(gameId)
+                                                libraryViewModel.toggleLikeById(gameId)
                                                 gameRepository.likeGame(gameId)
                                                 likeAnimationScale = 1.3f
                                             }
@@ -500,7 +499,7 @@ fun LibraryScreen(context: Context,
                                             }
                                     ) {
                                         val isLiked = selectedGameId?.let { gameId ->
-                                            viewModel.getGameById(gameId)?.liked ?: false
+                                            libraryViewModel.getGameById(gameId)?.liked ?: false
                                         } ?: false
 
                                         val animatedScale by animateFloatAsState(
@@ -563,7 +562,7 @@ fun LibraryScreen(context: Context,
                                             .border(5.dp, Color.White.copy(alpha=0.2f), RoundedCornerShape(20.dp))
                                     )
                                 } else {
-                                    val currentGame = selectedGameId?.let { viewModel.getGameById(it) }
+                                    val currentGame = selectedGameId?.let { libraryViewModel.getGameById(it) }
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()

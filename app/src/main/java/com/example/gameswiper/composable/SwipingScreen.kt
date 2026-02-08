@@ -104,13 +104,17 @@ import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
-import com.example.gameswiper.model.GamesViewModel
+import com.example.gameswiper.model.LibraryViewModel
+import com.example.gameswiper.model.SettingsViewModel
+import com.example.gameswiper.model.SwipeViewModel
+import com.example.gameswiper.model.UserViewModel
 import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.BUTTON_COLOR
 import com.example.gameswiper.utils.DETAILS_COLOR
 import com.example.gameswiper.utils.DOMINANT_COLOR
 import com.example.gameswiper.utils.GENRES
+import com.example.gameswiper.utils.PLATFORMS
 import com.example.gameswiper.utils.PLATFORMS
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
@@ -124,7 +128,10 @@ fun SwipingScreen(
     modifier: Modifier,
     context: Context,
     wrapper: GamesWrapper,
-    viewModel: GamesViewModel,
+    swipeViewModel: SwipeViewModel,
+    libraryViewModel: LibraryViewModel,
+    userViewModel: UserViewModel,
+    settingsViewModel: SettingsViewModel,
     gamesRepository: GameRepository,
     isActive: Boolean,
     userRepository: UserRepository
@@ -135,7 +142,7 @@ fun SwipingScreen(
     val coroutineScope = rememberCoroutineScope()
     val maxRotationAngle = 15f
 
-    val gameCards by viewModel.gameCards.collectAsState()
+    val gameCards by swipeViewModel.gameCards.collectAsState()
     val currentCard = gameCards.getOrNull(0)
     val nextCard = gameCards.getOrNull(1)
     val currentImage = currentCard?.imageUrl
@@ -171,25 +178,28 @@ fun SwipingScreen(
         imageLoader.memoryCache?.clear()
     }
 
+    val selectedGenres by settingsViewModel.selectedGenres.collectAsState()
+    val selectedPlatforms by settingsViewModel.selectedPlatforms.collectAsState()
+
     LaunchedEffect(gameCards.size){
-        if(gameCards.size < 20 && viewModel.selectedPlatforms.value.isNotEmpty() && fetchingGames){
+        if(gameCards.size < 20 && selectedPlatforms.isNotEmpty() && fetchingGames){
             fetchingGames = false
-            val preferredIds = viewModel.getPreferredGameIds()
+            val preferredIds = userViewModel.getPreferredGameIds()
             Log.i("preferred ids", preferredIds.toString())
             Log.i("fetched again", gameCards.toString())
             if (preferredIds.size > 500) {
-                viewModel.fetchGames(
+                swipeViewModel.fetchGames(
                     context,
-                    viewModel.selectedGenres.value.toList(),
-                    viewModel.selectedPlatforms.value.toList(),
+                    selectedGenres.toList(),
+                    selectedPlatforms.toList(),
                     wrapper,
                     preferredIds
                 )
             } else {
-                viewModel.fetchGames(
+                swipeViewModel.fetchGames(
                     context,
-                    viewModel.selectedGenres.value.toList(),
-                    viewModel.selectedPlatforms.value.toList(),
+                    selectedGenres.toList(),
+                    selectedPlatforms.toList(),
                     wrapper
                 )
             }
@@ -268,8 +278,8 @@ fun SwipingScreen(
                         offsetX.snapTo(0f)
                         nextCardScale.snapTo(0.90f)
 
-                        viewModel.swipedLeft(currentGame.similarGames, userRepository)
-                        viewModel.removeCard()
+                        userViewModel.swipedLeft(currentGame.similarGames, userRepository)
+                        swipeViewModel.removeCard()
                         swipeButtonEnabled = true
                     }
                 }
@@ -290,8 +300,8 @@ fun SwipingScreen(
                     coroutineScope.launch {
                         offsetX.animateTo(1500f, tween(300))
 
-                        viewModel.addGame(context, currentGame, gamesRepository, wrapper)
-                        viewModel.swipedRight(currentGame.similarGames, userRepository)
+                        libraryViewModel.addGame(context, currentGame, gamesRepository, wrapper)
+                        userViewModel.swipedRight(currentGame.similarGames, userRepository, libraryViewModel.getFavouriteGenre())
 
                         launch {
                             nextCardScale.animateTo(1f, tween(300))
@@ -302,7 +312,7 @@ fun SwipingScreen(
                         offsetX.snapTo(0f)
                         nextCardScale.snapTo(0.90f)
 
-                        viewModel.removeCard()
+                        swipeViewModel.removeCard()
                         swipeButtonEnabled = true
                     }
                 }
@@ -453,11 +463,11 @@ fun SwipingScreen(
                                         swipeButtonEnabled = false
                                         offsetX.animateTo(targetValue, tween(300))
                                         if (offsetX.value > 0f) {
-                                            viewModel.addGame(context, currentGame, gamesRepository, wrapper)
-                                            viewModel.swipedRight(currentGame.similarGames, userRepository)
+                                            libraryViewModel.addGame(context, currentGame, gamesRepository, wrapper)
+                                            userViewModel.swipedRight(currentGame.similarGames, userRepository, libraryViewModel.getFavouriteGenre())
                                         }
                                         else {
-                                            viewModel.swipedLeft(currentGame.similarGames, userRepository)
+                                            userViewModel.swipedLeft(currentGame.similarGames, userRepository)
                                         }
                                         launch {
                                             nextCardScale.animateTo(1f, tween(300))
@@ -467,8 +477,8 @@ fun SwipingScreen(
                                         offsetX.snapTo(0f)
                                         nextCardScale.snapTo(0.90f)
 
-                                        viewModel.removeCard()
-                                        viewModel.nextImage()
+                                        swipeViewModel.removeCard()
+                                        swipeViewModel.nextImage()
                                         swipeButtonEnabled = true // Odblokuj po zakończeniu
                                     } else {
                                         offsetX.animateTo(0f, tween(300))

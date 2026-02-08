@@ -1,6 +1,5 @@
 package com.example.gameswiper.common
 
-import android.util.Log
 import com.api.igdb.utils.ImageSize
 import com.api.igdb.utils.ImageType
 import com.api.igdb.utils.imageBuilder
@@ -119,6 +118,6 @@ fun parseJsonToGamesList(json: String): List<Game>{
     }catch (e: JSONException){
         e.printStackTrace()
     }
-    Log.d("vnm", gameList.map{ x -> x.video  }.toString())
+
     return gameList
 }

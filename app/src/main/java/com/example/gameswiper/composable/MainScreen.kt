@@ -49,7 +49,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.gameswiper.R
-import com.example.gameswiper.model.GamesViewModel
+import com.example.gameswiper.model.LibraryViewModel
+import com.example.gameswiper.model.SettingsViewModel
+import com.example.gameswiper.model.SwipeViewModel
+import com.example.gameswiper.model.UserViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.repository.UserRepository
@@ -66,7 +69,15 @@ enum class Screens{
 }
 
 @Composable
-fun MainScreen(modifier: Modifier, context: Context, viewModel: GamesViewModel, logOut: () -> Unit){
+fun MainScreen(
+    modifier: Modifier,
+    context: Context,
+    swipeViewModel: SwipeViewModel,
+    libraryViewModel: LibraryViewModel,
+    userViewModel: UserViewModel,
+    settingsViewModel: SettingsViewModel,
+    logOut: () -> Unit
+) {
 
     var current by remember { mutableIntStateOf(1) }
 
@@ -99,16 +110,16 @@ fun MainScreen(modifier: Modifier, context: Context, viewModel: GamesViewModel, 
 
     LaunchedEffect(isConnected) {
         if (isConnected) {
-            val needsLoading = viewModel.games.value.isEmpty()
+            val needsLoading = swipeViewModel.games.value.isEmpty()
             withContext(Dispatchers.IO) {
                 try {
                     wrapper.getStaticToken()
 
                     if (needsLoading) {
-                        viewModel.fetchSettings(userRepository, context, wrapper)
-                        viewModel.fetchUserDisplay(userRepository)
+                        settingsViewModel.fetchSettings(userRepository, context, wrapper, swipeViewModel)
+                        userViewModel.fetchUserDisplay(userRepository)
                     }
-                    viewModel.fetchImages2(context, wrapper, gamesRepository)
+                    libraryViewModel.fetchSavedGames(context, wrapper, gamesRepository)
 
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -152,10 +163,18 @@ fun MainScreen(modifier: Modifier, context: Context, viewModel: GamesViewModel, 
                                 .offset(x = targetOffset)
                         ) {
                             when (index) {
-                                1 -> SwipingScreen(Modifier, context, wrapper, viewModel, gamesRepository, isActive = (current == 1), userRepository)
-                                2 -> LibraryScreen(context, viewModel, gamesRepository, wrapper, isActive = (current == 2))
-                                3 -> SocialScreen(viewModel, userRepository, isActive = (current == 3))
-                                4 -> ProfileScreen(viewModel, userRepository, context, isActive = (current == 4))
+                                1 -> SwipingScreen(Modifier, context, wrapper, swipeViewModel, libraryViewModel, userViewModel, settingsViewModel, gamesRepository, isActive = (current == 1), userRepository)
+                                2 -> LibraryScreen(context, libraryViewModel, gamesRepository, wrapper, isActive = (current == 2))
+                                3 -> SocialScreen(userViewModel, userRepository, isActive = (current == 3))
+                                4 -> ProfileScreen(
+                                    userViewModel = userViewModel,
+                                    swipeViewModel = swipeViewModel,
+                                    settingsViewModel = settingsViewModel,
+                                    userRepository = userRepository,
+                                    gamesWrapper = wrapper,
+                                    context = context,
+                                    isActive = (current == 4)
+                                )
                             }
                         }
                     }

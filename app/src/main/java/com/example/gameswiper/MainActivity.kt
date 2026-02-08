@@ -27,7 +27,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gameswiper.composable.MainScreen
-import com.example.gameswiper.model.GamesViewModel
+import com.example.gameswiper.model.LibraryViewModel
+import com.example.gameswiper.model.SettingsViewModel
+import com.example.gameswiper.model.SwipeViewModel
+import com.example.gameswiper.model.UserViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.repository.UserRepository
@@ -39,7 +42,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: GamesViewModel by viewModels()
+    private val swipeViewModel: SwipeViewModel by viewModels()
+    private val libraryViewModel: LibraryViewModel by viewModels()
+    private val userViewModel: UserViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
+
     val userRepository = UserRepository()
     val gameRepository = GameRepository()
     val gamesWrapper = GamesWrapper()
@@ -48,9 +55,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         gamesWrapper.getStaticToken()
         Scheduler.scheduleNotification(this, 17, 0)
-        viewModel.fetchUserPreferences(userRepository)
-        viewModel.fetchFriends(userRepository)
-        viewModel.fetchImages2(this, gamesWrapper, gameRepository)
+        userViewModel.fetchUserPreferences(userRepository)
+        userViewModel.fetchFriends(userRepository)
+        libraryViewModel.fetchSavedGames(this, gamesWrapper, gameRepository)
 
         enableEdgeToEdge()
         setContent {
@@ -59,7 +66,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     contentWindowInsets = WindowInsets(0, 0, 0, 0)
                 ) { innerPadding ->
-                    MainScreen(Modifier.padding(innerPadding), this, viewModel) { loggedOut() }
+                    MainScreen(
+                        modifier = Modifier.padding(innerPadding),
+                        context = this,
+                        swipeViewModel = swipeViewModel,
+                        libraryViewModel = libraryViewModel,
+                        userViewModel = userViewModel,
+                        settingsViewModel = settingsViewModel
+                    ) { loggedOut() }
                 }
             }
         }
@@ -75,12 +89,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        val userDisplay = viewModel.userDisplay.value
-        val userPreferences = viewModel.userPreferences.value
+        val userDisplay = userViewModel.userDisplay.value
+        val userPreferences = userViewModel.userPreferences.value
 
-        viewModel.saveUserPreferences(userRepository)
+        userViewModel.saveUserPreferences(userRepository)
         userRepository.setUserDisplay(userDisplay)
-        viewModel.saveCardsToDataStore(this)
+        swipeViewModel.saveCardsToDataStore(this)
     }
 
 

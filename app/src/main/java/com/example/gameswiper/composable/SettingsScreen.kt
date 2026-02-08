@@ -34,21 +34,28 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gameswiper.model.GamesViewModel
+import com.example.gameswiper.model.SettingsViewModel
+import com.example.gameswiper.model.SwipeViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.UserRepository
 
 
 @Composable
-fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Unit, wrapper: GamesWrapper){
+fun SettingsScreen(
+    onBackPressed: () -> Unit,
+    context: Context,
+    logOut: () -> Unit,
+    wrapper: GamesWrapper,
+    settingsViewModel: SettingsViewModel,
+    swipeViewModel: SwipeViewModel
+) {
     val genres = GENRES
     val platforms = PLATFORMS
     val backgroundColor = Color(Color.Black.value)
     val checkedGenres = remember { mutableStateMapOf<String, Boolean>() }
     val checkedPlatforms = remember { mutableStateMapOf<String, Boolean>() }
-    val viewModel: GamesViewModel = viewModel()
-    val modelGenres by viewModel.selectedGenres.collectAsState()
-    val modelPlatforms by viewModel.selectedPlatforms.collectAsState()
+    val modelGenres by settingsViewModel.selectedGenres.collectAsState()
+    val modelPlatforms by settingsViewModel.selectedPlatforms.collectAsState()
     val userRepository = UserRepository()
 
     val genresCopy = remember { modelGenres.toSet() }
@@ -72,10 +79,10 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
             userRepository.setSettings(modelGenres.toList(), modelPlatforms.toList())
             println(modelPlatforms + "platforms " + platformsCopy + " " + modelGenres + " genres" + genresCopy + "!!!!!")
             if(modelPlatforms != platformsCopy.toSet() || modelGenres != genresCopy.toSet()) {
-                viewModel.fetchGames(
+                swipeViewModel.fetchGames(
                     context,
-                    viewModel.selectedGenres.value.toList(),
-                    viewModel.selectedPlatforms.value.toList(), wrapper
+                    settingsViewModel.selectedGenres.value.toList(),
+                    settingsViewModel.selectedPlatforms.value.toList(), wrapper
                 )
             }
             onBackPressed()
@@ -92,8 +99,8 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
                             Button(
                                 modifier = Modifier.padding(4.dp),
                                 onClick = { checkedGenres[genre.name] = !isChecked;
-                                          if(!isChecked) viewModel.addGenre(genre.id)
-                                          else {viewModel.removeGenre(genre.id)}; println(viewModel.selectedGenres.value)},
+                                          if(!isChecked) settingsViewModel.addGenre(genre.id)
+                                          else {settingsViewModel.removeGenre(genre.id)}; println(settingsViewModel.selectedGenres.value)},
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if(isChecked) Color(0xFF4150B1) else backgroundColor),
@@ -121,8 +128,8 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
                             Button(
                                 modifier = Modifier.padding(4.dp),
                                 onClick = { checkedPlatforms[platform.name] = !isChecked;
-                                          if(!isChecked) viewModel.addPlatform(platform.id)
-                                          else viewModel.removePlatform(platform.id)},
+                                          if(!isChecked) settingsViewModel.addPlatform(platform.id)
+                                          else settingsViewModel.removePlatform(platform.id)},
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if(isChecked) Color(0xFF4150B1) else backgroundColor),
@@ -148,7 +155,7 @@ fun SettingsScreen(onBackPressed: () -> Unit, context: Context, logOut: () -> Un
                 Row(modifier = Modifier.fillMaxWidth().background(Color(Color.Black.value)).padding(top=40.dp), horizontalArrangement = Arrangement.Center) {
                     Button(
                         modifier = Modifier.padding(4.dp),
-                        onClick = { viewModel.clearDataStore(context); FirebaseAuth.getInstance().signOut(); logOut() },
+                        onClick = { swipeViewModel.clearDataStore(context); FirebaseAuth.getInstance().signOut(); logOut() },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4100B1)),
                         contentPadding = PaddingValues(5.dp),

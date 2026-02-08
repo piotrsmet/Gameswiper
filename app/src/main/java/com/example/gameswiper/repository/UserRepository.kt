@@ -34,8 +34,7 @@ class UserRepository {
                 .collection("userDisplay")
                 .document(user.uid)
                 .set(userDisplay2)
-                .addOnSuccessListener { Log.i("suckess", "suckess") }
-                .addOnFailureListener { Log.e("failureee", it.message.toString()) }
+
 
         }
     }
@@ -77,8 +76,7 @@ class UserRepository {
                 .collection("preferences")
                 .document(user.uid)
                 .set(prefs)
-                .addOnSuccessListener { Log.i("suckess", prefs.toString()) }
-                .addOnFailureListener { Log.e("failureee", it.message.toString()) }
+
         }
     }
 
@@ -127,7 +125,6 @@ class UserRepository {
                     .await()
 
                 val friendsList = snapshot2.toObjects(UserDisplay::class.java)
-                Log.d("UserRepository", "Friends loaded: $friendsList")
                 friends.addAll(friendsList)
             }
         }
