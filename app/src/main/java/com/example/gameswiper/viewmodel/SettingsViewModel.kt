@@ -1,4 +1,4 @@
-package com.example.gameswiper.model
+package com.example.gameswiper.viewmodel
 
 import android.content.Context
 import android.util.Log

@@ -1,8 +1,9 @@
-package com.example.gameswiper.model
+package com.example.gameswiper.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gameswiper.model.UserDisplay
 import com.example.gameswiper.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

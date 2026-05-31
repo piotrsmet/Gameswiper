@@ -1,9 +1,11 @@
-package com.example.gameswiper.model
+package com.example.gameswiper.viewmodel
 
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gameswiper.model.Game
+import com.example.gameswiper.model.GameWithMedia
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
 import kotlinx.coroutines.Dispatchers

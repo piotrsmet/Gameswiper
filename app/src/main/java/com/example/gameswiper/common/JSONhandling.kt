@@ -4,6 +4,7 @@ import com.api.igdb.utils.ImageSize
 import com.api.igdb.utils.ImageType
 import com.api.igdb.utils.imageBuilder
 import com.example.gameswiper.model.Game
+import com.example.gameswiper.model.GameCard
 import org.json.JSONArray
 import org.json.JSONException
 
@@ -120,4 +121,90 @@ fun parseJsonToGamesList(json: String): List<Game>{
     }
 
     return gameList
+}
+
+/**
+ * Parsuje odpowiedź z IGDB z rozwiniętymi polami (cover.image_id, videos.video_id).
+ * Zwraca bezpośrednio listę GameCard — bez potrzeby dodatkowych zapytań API.
+ */
+fun parseJsonToGamesListExpanded(json: String): List<GameCard> {
+    val gameCardList = mutableListOf<GameCard>()
+    try {
+        val jsonArray = JSONArray(json)
+        for (i in 0 until jsonArray.length()) {
+            val jsonObject = jsonArray.getJSONObject(i)
+            val gameId = jsonObject.getInt("id")
+
+            // Cover — teraz jest obiektem z polem image_id
+            var coverImageUrl = ""
+            var coverId = 0
+            if (jsonObject.has("cover")) {
+                val coverObj = jsonObject.getJSONObject("cover")
+                coverId = coverObj.optInt("id", 0)
+                val imageId = coverObj.optString("image_id", "")
+                if (imageId.isNotEmpty()) {
+                    coverImageUrl = imageBuilder(imageId, ImageSize.HD, ImageType.PNG)
+                }
+            }
+
+            // Videos — teraz jest tablicą obiektów z polem video_id
+            var videoId: String? = null
+            var videoIntId = 0
+            if (jsonObject.has("videos")) {
+                val videosArray = jsonObject.getJSONArray("videos")
+                if (videosArray.length() > 0) {
+                    val firstVideo = videosArray.getJSONObject(0)
+                    videoIntId = firstVideo.optInt("id", 0)
+                    videoId = firstVideo.optString("video_id", null)
+                }
+            }
+
+            // Genres
+            val genresArray = jsonObject.optJSONArray("genres")
+            val genres = mutableListOf<Int>()
+            if (genresArray != null) {
+                for (j in 0 until genresArray.length()) {
+                    genres.add(genresArray.getInt(j))
+                }
+            }
+
+            val name = jsonObject.getString("name")
+
+            // Platforms
+            val platformsArray = jsonObject.optJSONArray("platforms")
+            val platforms = mutableListOf<Int>()
+            if (platformsArray != null) {
+                for (j in 0 until platformsArray.length()) {
+                    platforms.add(platformsArray.getInt(j))
+                }
+            }
+
+            // Themes
+            val themesArray = jsonObject.optJSONArray("themes")
+            val themes = mutableListOf<Int>()
+            if (themesArray != null) {
+                for (j in 0 until themesArray.length()) {
+                    themes.add(themesArray.getInt(j))
+                }
+            }
+
+            val summary = jsonObject.optString("summary", "")
+
+            // Similar games
+            val similarGamesArray = jsonObject.optJSONArray("similar_games")
+            val similarGames = mutableListOf<Int>()
+            if (similarGamesArray != null) {
+                for (j in 0 until similarGamesArray.length()) {
+                    similarGames.add(similarGamesArray.getInt(j))
+                }
+            }
+
+            val game = Game(gameId, coverId, videoIntId, genres, name, platforms, themes, summary, similarGames)
+            gameCardList.add(GameCard(game, coverImageUrl, videoId))
+        }
+    } catch (e: JSONException) {
+        e.printStackTrace()
+    }
+
+    return gameCardList
 }

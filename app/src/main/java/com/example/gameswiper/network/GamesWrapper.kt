@@ -3,7 +3,7 @@ package com.example.gameswiper.network
 import android.content.Context
 import android.util.Log
 import com.api.igdb.apicalypse.APICalypse
-import com.api.igdb.apicalypse.Sort
+
 import com.api.igdb.request.IGDBWrapper
 import com.api.igdb.request.TwitchAuthenticator
 import com.api.igdb.request.jsonCovers
@@ -16,12 +16,14 @@ import com.api.igdb.utils.ImageSize
 import com.api.igdb.utils.ImageType
 import com.api.igdb.utils.TwitchToken
 import com.api.igdb.utils.imageBuilder
-import com.example.gameswiper.common.parseJsonToGamesList
+
+import com.example.gameswiper.common.parseJsonToGamesListExpanded
 import com.example.gameswiper.common.parseJsonToImageList
 import com.example.gameswiper.common.parseJsonToPopularityList
 import com.example.gameswiper.common.parseJsonToVideosList
 import com.example.gameswiper.common.saveToJsonFile
-import com.example.gameswiper.model.Game
+
+import com.example.gameswiper.model.GameCard
 import com.example.gameswiper.utils.ACCESS_TOKEN
 import com.example.gameswiper.utils.CLIENT_ID
 import com.example.gameswiper.utils.CLIENT_SECRET
@@ -116,18 +118,21 @@ class GamesWrapper{
         }
     }
 
+    // Kept for library use — fetches cover image URLs by cover IDs stored in Firestore
     suspend fun wrapImages(context: Context, imageIds: List<Int>): List<String>? {
         if(token == null){
             println("No token generated yet!")
             return null
         }
-        Log.i("IDS", imageIds.toString())
-        var requestString = "(" + imageIds[0]
-        for(i in 1 until imageIds.size){
-            requestString += ',' + imageIds[i].toString()
-        }
+        if (imageIds.isEmpty()) return emptyList()
 
-        requestString+=")"
+        Log.i("IDS", imageIds.toString())
+        val requestString = imageIds.joinToString(
+            separator = ",",
+            prefix = "(",
+            postfix = ")"
+        )
+
         Log.i("String", requestString)
         return withContext(Dispatchers.IO) {
             try {
@@ -150,16 +155,19 @@ class GamesWrapper{
 
     }
 
+    // Kept for library use — fetches video IDs by game_video IDs stored in Firestore
     suspend fun wrapVideos(videosIds: List<Int>): List<String>?{
         if(token == null){
             println("No token generated yet!")
             return null
         }
-        var requestString = "(" + videosIds[0]
-        for(i in 1 .. videosIds.size-1){
-            requestString += ',' + videosIds[i].toString()
-        }
-        requestString += ")"
+        if (videosIds.isEmpty()) return emptyList()
+
+        val requestString = videosIds.joinToString(
+            separator = ",",
+            prefix = "(",
+            postfix = ")"
+        )
 
         return withContext(Dispatchers.IO){
             try {
@@ -180,12 +188,16 @@ class GamesWrapper{
         }
     }
 
-    suspend fun wrapGames(context: Context, genresList: List<Int>, platformsList: List<Int>): List<Game>?{
+    /**
+     * Pobiera gry z IGDB w jednym zapytaniu — z cover.image_id i videos.video_id
+     * zamiast osobnych zapytań do endpointów /covers i /game_videos.
+     * Zwraca od razu listę GameCard gotowych do wyświetlenia.
+     */
+    suspend fun wrapGamesWithMedia(context: Context, genresList: List<Int>, platformsList: List<Int>): List<GameCard>? {
         if(token == null){
             println("No token generated yet!")
             return null
         }
-
 
         val genresString = genresList.joinToString(
             separator = ",",
@@ -207,51 +219,56 @@ class GamesWrapper{
                 postfix = ")"
             )
 
-        var json: String = " "
         return withContext(Dispatchers.IO){
             try{
+                // Jedno zapytanie — cover i videos rozwinięte przez dot notation
                 val apiCalypse = APICalypse()
-                    .fields("id, cover, videos, genres, platforms, name, themes, summary, similar_games")
+                    .fields("id, cover.image_id, videos.video_id, genres, platforms, name, themes, summary, similar_games")
                     .limit(200)
                     .where("id = $idString & genres = $genresString & platforms = $platformsString " +
                             "& themes != null & summary != null & cover != null & similar_games != null " +
                             "& themes != 42")
-                json = IGDBWrapper.jsonGames(apiCalypse)
-                var gamesList = parseJsonToGamesList(json).shuffled()
+                val json = IGDBWrapper.jsonGames(apiCalypse)
+                val gameCards = parseJsonToGamesListExpanded(json).shuffled()
 
-                val gamesIdString = gamesList
-                    .map { it.id }
+                // Filtruj po popularności
+                val gamesIdString = gameCards
+                    .map { it.game.id }
                     .joinToString(
-                    separator = ",",
-                    prefix = "(",
-                    postfix = ")"
-                )
+                        separator = ",",
+                        prefix = "(",
+                        postfix = ")"
+                    )
+
+                if (gameCards.isEmpty()) return@withContext emptyList()
+
                 val apiCalypse2 = APICalypse()
                     .fields("id, game_id, value")
                     .where("game_id = $gamesIdString")
                     .limit(500)
                 val json2 = IGDBWrapper.jsonPopularityPrimitives(apiCalypse2)
                 val popularityList = parseJsonToPopularityList(json2)
-                val filteredGamesList = gamesList.filter{ game -> popularityList.any{ pair ->
-                            pair.first == game.id && pair.second!! > 0.00002
-                    }}
-                Log.i("POPULAIRTY", filteredGamesList.size.toString())
-                filteredGamesList
+                val filteredGameCards = gameCards.filter{ card -> popularityList.any{ pair ->
+                    pair.first == card.game.id && pair.second!! > 0.00002
+                }}
+                Log.i("POPULARITY", filteredGameCards.size.toString())
+                filteredGameCards
             } catch(e: Exception){
                 e.printStackTrace()
-
                 null
             }
         }
     }
 
-    suspend fun wrapGames(context: Context, genresList: List<Int>,
-                          platformsList: List<Int>, idsList: List<Int>): List<Game>?{
+    /**
+     * Wariant z podaną listą ID gier — też pobiera cover i videos w jednym zapytaniu.
+     */
+    suspend fun wrapGamesWithMedia(context: Context, genresList: List<Int>,
+                          platformsList: List<Int>, idsList: List<Int>): List<GameCard>?{
         if(token == null){
             println("No token generated yet!")
             return null
         }
-
 
         val genresString = genresList.joinToString(
             separator = ",",
@@ -270,21 +287,18 @@ class GamesWrapper{
             prefix = "(",
             postfix = ")"
         )
-        var json: String = " "
+
         return withContext(Dispatchers.IO){
             try{
                 val apiCalypse = APICalypse()
-                    .fields("id, cover, videos, genres, platforms, name, themes, summary, similar_games")
+                    .fields("id, cover.image_id, videos.video_id, genres, platforms, name, themes, summary, similar_games")
                     .limit(200)
                     .where("id = $idString & genres = $genresString & platforms = $platformsString " +
-                            "& themes != null & summary != null & cover != null  & themes != 42")
-                json = IGDBWrapper.jsonGames(apiCalypse)
-                val gamesList = parseJsonToGamesList(json)
-
-                gamesList
+                            "& themes != null & summary != null & cover != null & themes != 42")
+                val json = IGDBWrapper.jsonGames(apiCalypse)
+                parseJsonToGamesListExpanded(json)
             } catch(e: Exception){
                 e.printStackTrace()
-
                 null
             }
         }

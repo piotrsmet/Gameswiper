@@ -1,10 +1,7 @@
 package com.example.gameswiper
 
-import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,27 +16,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.WindowCompat
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gameswiper.composable.MainScreen
-import com.example.gameswiper.model.LibraryViewModel
-import com.example.gameswiper.model.SettingsViewModel
-import com.example.gameswiper.model.SwipeViewModel
-import com.example.gameswiper.model.UserViewModel
+import com.example.gameswiper.viewmodel.LibraryViewModel
+import com.example.gameswiper.viewmodel.SettingsViewModel
+import com.example.gameswiper.viewmodel.SwipeViewModel
+import com.example.gameswiper.viewmodel.UserViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.service.Scheduler
 import com.example.gameswiper.ui.theme.GameswiperTheme
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val swipeViewModel: SwipeViewModel by viewModels()

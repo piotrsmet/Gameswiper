@@ -1,4 +1,4 @@
-package com.example.gameswiper.model
+package com.example.gameswiper.viewmodel
 
 import android.content.Context
 import android.util.Log
@@ -6,8 +6,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gameswiper.model.Game
+import com.example.gameswiper.model.GameCard
 import com.example.gameswiper.network.GamesWrapper
-import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.userDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -107,56 +108,22 @@ class SwipeViewModel : ViewModel() {
         }
     }
 
-    // ===== IMAGE & VIDEO FETCHING =====
-    suspend fun fetchImages(context: Context, imageIds: List<Int>, gamesWrapper: GamesWrapper): List<String> {
-        return try {
-            val result = gamesWrapper.wrapImages(context, imageIds)
-            result ?: emptyList()
-        } catch (e: Exception) {
-            Log.e("SwipeViewModel", "Error fetching images", e)
-            emptyList()
-        }
-    }
+    // ===== FETCH GAMES FROM API (OPTIMIZED — 1 request instead of 3) =====
 
-    suspend fun fetchVideos(context: Context, videoIds: List<Int>, gamesWrapper: GamesWrapper): List<String> {
-        return try {
-            val result = gamesWrapper.wrapVideos(videoIds)
-            Log.i("VIDEOS FETCHED", result?.toString() ?: "null")
-            result ?: emptyList()
-        } catch (e: Exception) {
-            Log.e("SwipeViewModel", "Error fetching videos", e)
-            emptyList()
-        }
-    }
-
-    // ===== FETCH GAMES FROM API =====
+    /**
+     * Pobiera gry z API — jedno zapytanie z cover.image_id i videos.video_id
+     * zamiast trzech osobnych (games + covers + game_videos).
+     */
     fun fetchGames(context: Context, genres: List<Int>, platforms: List<Int>, gamesWrapper: GamesWrapper) {
         viewModelScope.launch {
             try {
-                val gamesResult = gamesWrapper.wrapGames(context, genres, platforms) ?: return@launch
-                _games.value += gamesResult
-                val imageIds = gamesResult.map { it.cover }
-                val videoIds = gamesResult.map { it.video }
+                val gameCards = gamesWrapper.wrapGamesWithMedia(context, genres, platforms) ?: return@launch
 
-                if (imageIds.isEmpty() || videoIds.isEmpty()) {
-                    return@launch
-                }
+                _games.value += gameCards.map { it.game }
+                _images.update { it + gameCards.map { card -> card.imageUrl } }
+                _videos.update { it + gameCards.mapNotNull { card -> card.videoId } }
+                _gameCards.update { it + gameCards }
 
-                val imagesResult = fetchImages(context, imageIds, gamesWrapper)
-                val videosResult = fetchVideos(context, videoIds, gamesWrapper)
-                _images.update { it + imagesResult }
-                _videos.update { it + videosResult }
-
-                for (i in gamesResult.indices) {
-                    if (i < imagesResult.size && i < videosResult.size) {
-                        val card = GameCard(
-                            gamesResult[i],
-                            imagesResult[i],
-                            videosResult[i]
-                        )
-                        _gameCards.update { it + card }
-                    }
-                }
             } catch (e: Exception) {
                 Log.e("SwipeViewModel", "Error fetching games", e)
             }
@@ -170,31 +137,17 @@ class SwipeViewModel : ViewModel() {
         Log.i("FETCH GAMES WITH IDS", idsList.toString())
         viewModelScope.launch {
             try {
-                val gamesResult = gamesWrapper.wrapGames(context, genres, platforms, idsList) ?: return@launch
+                val gameCards = gamesWrapper.wrapGamesWithMedia(context, genres, platforms, idsList) ?: return@launch
 
-                _games.value += gamesResult
+                _games.value += gameCards.map { it.game }
+                _images.update { it + gameCards.map { card -> card.imageUrl } }
+                _videos.update { it + gameCards.mapNotNull { card -> card.videoId } }
+                _gameCards.update { it + gameCards }
 
-                val imageIds = gamesResult.map { it.cover }
-                val videoIds = gamesResult.map { it.video }
-
-                val imagesResult = fetchImages(context, imageIds, gamesWrapper)
-                val videosResult = fetchVideos(context, videoIds, gamesWrapper)
-                _images.update { it + imagesResult }
-                _videos.update { it + videosResult }
                 Log.i(
                     "GAMES IMAGES VIDEOS2", _games.value.size.toString() + " " +
                             _images.value.size.toString() + " " + _videos.value.size.toString()
                 )
-                for (i in gamesResult.indices) {
-                    if (i < imagesResult.size && i < videosResult.size) {
-                        val card = GameCard(
-                            gamesResult[i],
-                            imagesResult[i],
-                            videosResult[i]
-                        )
-                        _gameCards.update { it + card }
-                    }
-                }
             } catch (e: Exception) {
                 Log.e("SwipeViewModel", "Error fetching games with IDs", e)
             }
@@ -223,4 +176,3 @@ class SwipeViewModel : ViewModel() {
         }
     }
 }
-

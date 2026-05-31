@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -49,10 +48,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.gameswiper.R
-import com.example.gameswiper.model.LibraryViewModel
-import com.example.gameswiper.model.SettingsViewModel
-import com.example.gameswiper.model.SwipeViewModel
-import com.example.gameswiper.model.UserViewModel
+import com.example.gameswiper.viewmodel.LibraryViewModel
+import com.example.gameswiper.viewmodel.SettingsViewModel
+import com.example.gameswiper.viewmodel.SwipeViewModel
+import com.example.gameswiper.viewmodel.UserViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.GameRepository
 import com.example.gameswiper.repository.UserRepository

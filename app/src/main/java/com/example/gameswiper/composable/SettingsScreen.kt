@@ -33,9 +33,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gameswiper.model.SettingsViewModel
-import com.example.gameswiper.model.SwipeViewModel
+import com.example.gameswiper.viewmodel.SettingsViewModel
+import com.example.gameswiper.viewmodel.SwipeViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.UserRepository
 

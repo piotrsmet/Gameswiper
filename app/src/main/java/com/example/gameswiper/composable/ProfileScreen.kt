@@ -56,9 +56,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gameswiper.LogInActivity
 import com.example.gameswiper.R
-import com.example.gameswiper.model.SettingsViewModel
-import com.example.gameswiper.model.SwipeViewModel
-import com.example.gameswiper.model.UserViewModel
+import com.example.gameswiper.viewmodel.SettingsViewModel
+import com.example.gameswiper.viewmodel.SwipeViewModel
+import com.example.gameswiper.viewmodel.UserViewModel
 import com.example.gameswiper.network.GamesWrapper
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.AVATARS

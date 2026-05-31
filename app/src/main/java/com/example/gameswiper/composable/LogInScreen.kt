@@ -39,8 +39,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gameswiper.model.SettingsViewModel
-import com.example.gameswiper.model.UserViewModel
+import com.example.gameswiper.viewmodel.SettingsViewModel
+import com.example.gameswiper.viewmodel.UserViewModel
 import com.example.gameswiper.model.UserDisplay
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.GENRES

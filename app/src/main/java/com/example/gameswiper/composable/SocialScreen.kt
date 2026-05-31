@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gameswiper.R
-import com.example.gameswiper.model.UserViewModel
+import com.example.gameswiper.viewmodel.UserViewModel
 import com.example.gameswiper.model.UserDisplay
 import com.example.gameswiper.repository.UserRepository
 import com.example.gameswiper.utils.AVATARS
